@@ -38,8 +38,8 @@
     surveyConfig: {
       paused: false,
       announcement: '',
-      supportEnabled: true,
-      bondinUsername: 'vaibhavyadav',
+      supportEnabled: false,
+      bondinUsername: '',
       supportTitle: '',
       supportMessage: '',
       supportUrl: '',
@@ -167,8 +167,8 @@
       state.surveyConfig = {
         paused: Boolean(rawCfg?.paused),
         announcement: String(rawCfg?.announcement || ''),
-        supportEnabled: rawCfg?.supportEnabled !== undefined ? Boolean(rawCfg.supportEnabled) : true,
-        bondinUsername: rawCfg?.bondinUsername !== undefined ? String(rawCfg.bondinUsername || '') : 'vaibhavyadav',
+        supportEnabled: Boolean(rawCfg?.supportEnabled),
+        bondinUsername: String(rawCfg?.bondinUsername || ''),
         supportTitle: String(rawCfg?.supportTitle || ''),
         supportMessage: String(rawCfg?.supportMessage || ''),
         supportUrl: String(rawCfg?.supportUrl || ''),
@@ -1139,7 +1139,7 @@
     const title = String(cfg.supportTitle || '').trim() || 'सर्वे बढ़िया लगा? एक चाय पिला सकते हैं ☕';
     const desc =
       String(cfg.supportMessage || '').trim() ||
-      'इसे मैंने बिना विज्ञापन और बिना लॉगिन के बनाया है ताकि सही राय सामने आए। मन हो तो छोटा-सा सहयोग करें, वरना सीधा नतीजे देखें।';
+      'इसे बिना विज्ञापन और बिना लॉगिन के बनाया गया है ताकि सही राय सामने आए। मन हो तो छोटा-सा सहयोग करें, वरना सीधा नतीजे देखें।';
     const btnLabel = String(cfg.supportBtnLabel || '').trim() || 'चाय / सपोर्ट दें ☕';
     const bondinUser = String(cfg.bondinUsername || '').trim();
     const rawUrl = String(cfg.supportUrl || '').trim();
@@ -1167,8 +1167,8 @@
         <div class="support-sheet-handle" aria-hidden="true"></div>
         <div class="support-author-row">
           <div class="support-author-left">
-            <span class="support-author-avatar" aria-hidden="true">V</span>
-            <span class="support-author-meta">Preview • वैभव यादव • UP जनमत सर्वे</span>
+            <span class="support-author-avatar" aria-hidden="true">UP</span>
+            <span class="support-author-meta">Preview • UP जनमत सर्वे • स्वतंत्र पहल</span>
           </div>
           <button type="button" id="previewCloseX" class="support-close-x" aria-label="Close">✕</button>
         </div>
@@ -1230,7 +1230,7 @@
           <div class="admin-two-col">
             <div class="admin-field">
               <label for="bondinUserInput">Bondin Username (अंतर्निर्मित सपोर्ट विजेट)</label>
-              <input id="bondinUserInput" type="text" class="dropdown-search-input" placeholder="vaibhavyadav" value="${escapeHtml(cfg.bondinUsername || '')}" />
+              <input id="bondinUserInput" type="text" class="dropdown-search-input" placeholder="apna-anonymous-username" value="${escapeHtml(cfg.bondinUsername || '')}" />
             </div>
             <div class="admin-field">
               <label for="supportUpiInput">या UPI ID (वैकल्पिक — Copy & ₹11/21/51 UPI)</label>

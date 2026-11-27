@@ -42,8 +42,8 @@ const state = {
   surveyConfig: {
     paused: false,
     announcement: '',
-    supportEnabled: true,
-    bondinUsername: 'vaibhavyadav',
+    supportEnabled: false,
+    bondinUsername: '',
     supportTitle: '',
     supportMessage: '',
     supportUrl: '',
@@ -1479,7 +1479,7 @@ function openSupportModal() {
       <div class="support-sheet-handle" aria-hidden="true"></div>
       <div class="support-author-row">
         <div class="support-author-left">
-          <span class="support-author-avatar" aria-hidden="true">V</span>
+          <span class="support-author-avatar" aria-hidden="true">UP</span>
           <span class="support-author-meta">${escapeHtml(dict.supportBadge)}</span>
         </div>
         <button type="button" id="supportCloseX" class="support-close-x" aria-label="Close">✕</button>
@@ -1801,8 +1801,8 @@ async function init() {
             state.surveyConfig = {
               paused: Boolean(cfgData.paused),
               announcement: String(cfgData.announcement || ''),
-              supportEnabled: cfgData.supportEnabled !== undefined ? Boolean(cfgData.supportEnabled) : true,
-              bondinUsername: cfgData.bondinUsername !== undefined ? String(cfgData.bondinUsername || '') : 'vaibhavyadav',
+              supportEnabled: Boolean(cfgData.supportEnabled),
+              bondinUsername: String(cfgData.bondinUsername || ''),
               supportTitle: String(cfgData.supportTitle || ''),
               supportMessage: String(cfgData.supportMessage || ''),
               supportUrl: String(cfgData.supportUrl || ''),
