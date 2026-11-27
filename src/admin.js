@@ -35,7 +35,16 @@
     summary: null,
     seatsAgg: {},
     votes: {},
-    surveyConfig: { paused: false, announcement: '' },
+    surveyConfig: {
+      paused: false,
+      announcement: '',
+      supportEnabled: false,
+      supportTitle: '',
+      supportMessage: '',
+      supportUrl: '',
+      supportUpi: '',
+      supportBtnLabel: '',
+    },
   };
 
   function escapeHtml(s) {
@@ -152,7 +161,17 @@
       state.summary = (sumRes.ok ? await sumRes.json() : null) || {};
       state.seatsAgg = (seatsRes.ok ? await seatsRes.json() : null) || {};
       state.votes = (votesRes.ok ? await votesRes.json() : null) || {};
-      state.surveyConfig = (cfgRes.ok ? await cfgRes.json() : null) || { paused: false, announcement: '' };
+      const rawCfg = cfgRes.ok ? await cfgRes.json() : null;
+      state.surveyConfig = {
+        paused: Boolean(rawCfg?.paused),
+        announcement: String(rawCfg?.announcement || ''),
+        supportEnabled: Boolean(rawCfg?.supportEnabled),
+        supportTitle: String(rawCfg?.supportTitle || ''),
+        supportMessage: String(rawCfg?.supportMessage || ''),
+        supportUrl: String(rawCfg?.supportUrl || ''),
+        supportUpi: String(rawCfg?.supportUpi || ''),
+        supportBtnLabel: String(rawCfg?.supportBtnLabel || ''),
+      };
     } catch (err) {
       console.error(err);
       showToast(err.message || 'Load error');
@@ -288,9 +307,18 @@
     return map;
   }
 
-  async function saveSurveyConfig(paused, announcement) {
+  async function saveSurveyConfig(nextConfig) {
     const tok = await ensureValidToken();
-    const payload = { paused: Boolean(paused), announcement: String(announcement || '').trim() };
+    const payload = {
+      paused: Boolean(nextConfig.paused),
+      announcement: String(nextConfig.announcement || '').trim(),
+      supportEnabled: Boolean(nextConfig.supportEnabled),
+      supportTitle: String(nextConfig.supportTitle || '').trim(),
+      supportMessage: String(nextConfig.supportMessage || '').trim(),
+      supportUrl: String(nextConfig.supportUrl || '').trim(),
+      supportUpi: String(nextConfig.supportUpi || '').trim(),
+      supportBtnLabel: String(nextConfig.supportBtnLabel || '').trim(),
+    };
     const res = await fetch(`${rtdbBase()}/config.json?auth=${encodeURIComponent(tok)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -298,7 +326,7 @@
     });
     if (!res.ok) throw new Error('Failed to save config');
     state.surveyConfig = payload;
-    showToast('Live survey controls updated!');
+    showToast('Live survey & support popup settings saved!');
     render();
   }
 
@@ -1012,20 +1040,116 @@
     `;
   }
 
+  function openAdminPopupPreview(cfg) {
+    document.getElementById('supportModalRoot')?.remove();
+    const title = String(cfg.supportTitle || '').trim() || 'एक चाय / कॉफ़ी सपोर्ट करें ☕';
+    const desc =
+      String(cfg.supportMessage || '').trim() ||
+      'यह सर्वे बिल्कुल मुफ़्त और विज्ञापन-मुक्त है। यदि आपको हमारा प्रयास पसंद आया, तो स्वेच्छा से छोटा-सा सहयोग दे सकते हैं।';
+    const btnLabel = String(cfg.supportBtnLabel || '').trim() || '☕ सपोर्ट करें (Buy Me a Coffee)';
+    const rawUrl = String(cfg.supportUrl || '').trim();
+    let extUrl = '';
+    try {
+      const p = rawUrl ? new URL(rawUrl) : null;
+      if (p && (p.protocol === 'https:' || p.protocol === 'http:')) extUrl = p.href;
+    } catch {
+      extUrl = '';
+    }
+    const upiId = String(cfg.supportUpi || '').trim();
+
+    const modal = document.createElement('div');
+    modal.id = 'supportModalRoot';
+    modal.className = 'support-modal-backdrop';
+    modal.innerHTML = `
+      <div class="support-modal-card">
+        <button type="button" id="previewCloseX" class="support-close-x" aria-label="Close">✕</button>
+        <div class="support-cup-circle" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+        </div>
+        <span class="support-vol-badge">Preview • स्वेच्छिक सहयोग</span>
+        <h2 class="support-modal-title">${escapeHtml(title)}</h2>
+        <p class="support-modal-desc">${escapeHtml(desc)}</p>
+        ${
+          extUrl
+            ? `<a class="btn-primary support-cta-link" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(btnLabel)}</a>`
+            : `<button type="button" class="btn-primary support-cta-link" onclick="return false;">${escapeHtml(btnLabel)}</button>`
+        }
+        ${
+          upiId
+            ? `<div class="support-upi-box">
+                <span class="support-upi-label">या UPI से सहयोग करें:</span>
+                <div class="support-upi-row"><code>${escapeHtml(upiId)}</code></div>
+               </div>`
+            : `<p class="admin-dist-sub" style="margin:6px 0 0;">(लिंक या UPI ID डालने के बाद लाइव साइट पर दिखेगा)</p>`
+        }
+        <button type="button" id="previewDismissBtn" class="support-dismiss-btn">अभी नहीं, सिर्फ़ नतीजे देखें</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    const closePrev = () => modal.remove();
+    document.getElementById('previewCloseX')?.addEventListener('click', closePrev);
+    document.getElementById('previewDismissBtn')?.addEventListener('click', closePrev);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closePrev();
+    });
+  }
+
   function renderControlsTab() {
+    const cfg = state.surveyConfig || {};
     return `
       <div class="metric-section">
-        <h2 class="metric-heading"><span>Live Survey Status & Notice Banner</span></h2>
+        <h2 class="metric-heading"><span>Live Survey Status, Notice & Support Popup</span></h2>
         <form id="controlsForm" class="admin-form">
           <label class="admin-checkbox-row">
-            <input type="checkbox" id="pauseToggle" ${state.surveyConfig?.paused ? 'checked' : ''} />
+            <input type="checkbox" id="pauseToggle" ${cfg.paused ? 'checked' : ''} />
             <span><strong>Pause Survey Voting</strong> (Users can still view live results, new votes temporarily paused)</span>
           </label>
           <div class="admin-field">
             <label for="noticeInput">Top Announcement Banner (optional)</label>
-            <input id="noticeInput" type="text" class="dropdown-search-input" placeholder="उदाहरण: यूपी 2027 जनमत सर्वे लाइव है — अपनी विधानसभा चुनें" value="${escapeHtml(state.surveyConfig?.announcement || '')}" />
+            <input id="noticeInput" type="text" class="dropdown-search-input" placeholder="उदाहरण: यूपी 2027 जनमत सर्वे लाइव है — अपनी विधानसभा चुनें" value="${escapeHtml(cfg.announcement || '')}" />
           </div>
-          <button type="submit" class="btn-primary">Save Live Controls</button>
+
+          <hr style="border:none;border-top:1px solid var(--line);margin:8px 0;" />
+
+          <h3 class="metric-heading" style="margin:2px 0 4px;"><span>☕ End-of-Survey Voluntary Support Popup</span><span class="metric-tag">Buy Me a Coffee / UPI</span></h3>
+          <p class="card-subtitle" style="margin:0 0 6px;">वोट सबमिट होने के तुरंत बाद स्वेच्छिक सपोर्ट पॉपअप दिखाएँ (जिसकी इच्छा होगी वह देगा, बाकी "नहीं" दबाकर नतीजे देख लेंगे)।</p>
+
+          <label class="admin-checkbox-row">
+            <input type="checkbox" id="supportToggle" ${cfg.supportEnabled ? 'checked' : ''} />
+            <span><strong>Enable Support Popup after Vote</strong> (नीचे Payment Link या UPI ID होने पर ही लाइव दिखेगा)</span>
+          </label>
+
+          <div class="admin-two-col">
+            <div class="admin-field">
+              <label for="supportUrlInput">Buy Me a Coffee / Razorpay Link (https://...)</label>
+              <input id="supportUrlInput" type="url" class="dropdown-search-input" placeholder="https://buymeacoffee.com/yourname या https://razorpay.me/@yourname" value="${escapeHtml(cfg.supportUrl || '')}" />
+            </div>
+            <div class="admin-field">
+              <label for="supportUpiInput">या UPI ID (वैकल्पिक — Copy & ₹11/21/51 UPI)</label>
+              <input id="supportUpiInput" type="text" class="dropdown-search-input" placeholder="yourname@okaxis या yourname@ybl" value="${escapeHtml(cfg.supportUpi || '')}" />
+            </div>
+          </div>
+
+          <div class="admin-two-col">
+            <div class="admin-field">
+              <label for="supportTitleInput">Popup Title (खाली छोड़ने पर डिफ़ॉल्ट हिंदी शीर्षक)</label>
+              <input id="supportTitleInput" type="text" class="dropdown-search-input" placeholder="एक चाय / कॉफ़ी सपोर्ट करें ☕" value="${escapeHtml(cfg.supportTitle || '')}" />
+            </div>
+            <div class="admin-field">
+              <label for="supportBtnInput">Button Text</label>
+              <input id="supportBtnInput" type="text" class="dropdown-search-input" placeholder="☕ सपोर्ट करें (Buy Me a Coffee)" value="${escapeHtml(cfg.supportBtnLabel || '')}" />
+            </div>
+          </div>
+
+          <div class="admin-field">
+            <label for="supportMsgInput">Popup Message</label>
+            <input id="supportMsgInput" type="text" class="dropdown-search-input" placeholder="यह सर्वे बिल्कुल मुफ़्त है। पसंद आए तो स्वेच्छा से छोटा सहयोग दे सकते हैं।" value="${escapeHtml(cfg.supportMessage || '')}" />
+          </div>
+
+          <div class="admin-export-row">
+            <button type="submit" class="btn-primary">Save Live Controls</button>
+            <button type="button" id="previewSupportBtn" class="btn-back">👁 Preview Support Popup</button>
+          </div>
         </form>
       </div>
 
@@ -1109,13 +1233,31 @@
 
     document.getElementById('controlsForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const paused = document.getElementById('pauseToggle').checked;
-      const announcement = document.getElementById('noticeInput').value;
+      const nextCfg = {
+        paused: document.getElementById('pauseToggle').checked,
+        announcement: document.getElementById('noticeInput').value,
+        supportEnabled: document.getElementById('supportToggle').checked,
+        supportUrl: document.getElementById('supportUrlInput').value,
+        supportUpi: document.getElementById('supportUpiInput').value,
+        supportTitle: document.getElementById('supportTitleInput').value,
+        supportBtnLabel: document.getElementById('supportBtnInput').value,
+        supportMessage: document.getElementById('supportMsgInput').value,
+      };
       try {
-        await saveSurveyConfig(paused, announcement);
+        await saveSurveyConfig(nextCfg);
       } catch (err) {
         showToast(err.message);
       }
+    });
+
+    document.getElementById('previewSupportBtn')?.addEventListener('click', () => {
+      openAdminPopupPreview({
+        supportTitle: document.getElementById('supportTitleInput')?.value,
+        supportMessage: document.getElementById('supportMsgInput')?.value,
+        supportUrl: document.getElementById('supportUrlInput')?.value,
+        supportUpi: document.getElementById('supportUpiInput')?.value,
+        supportBtnLabel: document.getElementById('supportBtnInput')?.value,
+      });
     });
 
     document.getElementById('recomputeBtn')?.addEventListener('click', async () => {

@@ -38,7 +38,17 @@ const state = {
   viewedSeatAc: null,
   aggregates: null, // { seat: {...}, state: {...} }
   existingVote: null,
-  surveyConfig: { paused: false, announcement: '' },
+  pendingSupportPopup: false,
+  surveyConfig: {
+    paused: false,
+    announcement: '',
+    supportEnabled: false,
+    supportTitle: '',
+    supportMessage: '',
+    supportUrl: '',
+    supportUpi: '',
+    supportBtnLabel: '',
+  },
   usingFallbackDemo: false,
   submitting: false,
 };
@@ -1217,6 +1227,7 @@ async function submitVote() {
     state.viewedSeatAc = payload.acNo;
     state.step = 6;
     state.resultsScope = 'seat';
+    state.pendingSupportPopup = true;
   } catch (err) {
     console.error(err);
     showToast(t().loadError);
@@ -1385,6 +1396,97 @@ function renderAgeColumnGraph(items, countsMap, total, userPickId) {
   `;
 }
 
+function safeExternalUrl(raw) {
+  const txt = String(raw || '').trim();
+  if (!txt) return '';
+  try {
+    const parsed = new URL(txt);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.href : '';
+  } catch {
+    return '';
+  }
+}
+
+function hasSupportConfig() {
+  const cfg = state.surveyConfig || {};
+  return Boolean(cfg.supportEnabled && (safeExternalUrl(cfg.supportUrl) || String(cfg.supportUpi || '').trim()));
+}
+
+function closeSupportModal() {
+  document.getElementById('supportModalRoot')?.remove();
+}
+
+function openSupportModal() {
+  closeSupportModal();
+  const dict = t();
+  const cfg = state.surveyConfig || {};
+  const extUrl = safeExternalUrl(cfg.supportUrl);
+  const upiId = String(cfg.supportUpi || '').trim();
+  if (!extUrl && !upiId) return;
+
+  const title = cfg.supportTitle || dict.supportDefaultTitle;
+  const desc = cfg.supportMessage || dict.supportDefaultDesc;
+  const ctaLabel = cfg.supportBtnLabel || dict.supportDefaultCta;
+
+  const upiHtml = upiId
+    ? `
+      <div class="support-upi-box">
+        <span class="support-upi-label">${escapeHtml(dict.supportUpiLabel)}</span>
+        <div class="support-upi-row">
+          <code>${escapeHtml(upiId)}</code>
+          <button type="button" id="supportCopyUpiBtn" class="invite-use-btn">${escapeHtml(dict.supportCopyUpi)}</button>
+        </div>
+        <div class="support-upi-chips">
+          ${[11, 21, 51]
+            .map(
+              (amt) =>
+                `<a class="support-amt-pill" href="upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent('UP Survey Support')}&am=${amt}&tn=${encodeURIComponent('Voluntary Survey Support')}&cu=INR">₹${amt} UPI</a>`
+            )
+            .join('')}
+        </div>
+      </div>`
+    : '';
+
+  const modal = document.createElement('div');
+  modal.id = 'supportModalRoot';
+  modal.className = 'support-modal-backdrop';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.innerHTML = `
+    <div class="support-modal-card">
+      <button type="button" id="supportCloseX" class="support-close-x" aria-label="Close">✕</button>
+      <div class="support-cup-circle" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+      </div>
+      <span class="support-vol-badge">${escapeHtml(dict.supportBadge)}</span>
+      <h2 class="support-modal-title">${escapeHtml(title)}</h2>
+      <p class="support-modal-desc">${escapeHtml(desc)}</p>
+      ${
+        extUrl
+          ? `<a id="supportExtLink" class="btn-primary support-cta-link" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ctaLabel)}</a>`
+          : ''
+      }
+      ${upiHtml}
+      <button type="button" id="supportDismissBtn" class="support-dismiss-btn">${escapeHtml(dict.supportDismiss)}</button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.getElementById('supportCloseX')?.addEventListener('click', closeSupportModal);
+  document.getElementById('supportDismissBtn')?.addEventListener('click', closeSupportModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeSupportModal();
+  });
+  document.getElementById('supportCopyUpiBtn')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(upiId);
+      showToast(dict.supportUpiCopied);
+    } catch {
+      showToast(upiId);
+    }
+  });
+}
+
 function renderResults() {
   const dict = t();
   const activeAc = state.viewedSeatAc || state.answers.acNo;
@@ -1519,6 +1621,11 @@ function renderResults() {
             ${escapeHtml(dict.shareWhatsapp)}
           </a>
           <button type="button" id="copyLinkBtn" class="btn-copy">${escapeHtml(dict.copyLink)}</button>
+          ${
+            hasSupportConfig()
+              ? `<button type="button" id="openSupportModalBtn" class="btn-support-inline">${escapeHtml(state.surveyConfig?.supportBtnLabel || dict.supportDefaultCta)}</button>`
+              : ''
+          }
         </div>
       </div>
     </section>
@@ -1550,6 +1657,19 @@ function renderResults() {
     state.step = 0;
     render();
   });
+
+  document.getElementById('openSupportModalBtn')?.addEventListener('click', () => {
+    openSupportModal();
+  });
+
+  if (state.pendingSupportPopup) {
+    state.pendingSupportPopup = false;
+    if (hasSupportConfig()) {
+      setTimeout(() => {
+        if (state.step === 6) openSupportModal();
+      }, 750);
+    }
+  }
 
   document.getElementById('demoResetBtn')?.addEventListener('click', () => {
     localStorage.removeItem(STORAGE_VOTE_KEY);
@@ -1608,6 +1728,7 @@ async function init() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    closeSupportModal();
     if (state.step === 1 && state.districtOpen) {
       state.districtOpen = false;
       document.getElementById('districtTrigger')?.setAttribute('aria-expanded', 'false');
@@ -1648,6 +1769,12 @@ async function init() {
             state.surveyConfig = {
               paused: Boolean(cfgData.paused),
               announcement: String(cfgData.announcement || ''),
+              supportEnabled: Boolean(cfgData.supportEnabled),
+              supportTitle: String(cfgData.supportTitle || ''),
+              supportMessage: String(cfgData.supportMessage || ''),
+              supportUrl: String(cfgData.supportUrl || ''),
+              supportUpi: String(cfgData.supportUpi || ''),
+              supportBtnLabel: String(cfgData.supportBtnLabel || ''),
             };
           }
         }
