@@ -2853,3 +2853,45 @@ html[lang="en"] .card-title {
   background: #ffedd5;
   border-color: var(--orange-deep);
 }
+
+.admin-quick-reset-btn {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-quick-reset-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.reset-option-box {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-2);
+  background: #fffdf8;
+  margin-bottom: 10px;
+}
+
+.reset-option-box--danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+  margin-bottom: 0;
+}
+
+.reset-option-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.admin-danger-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

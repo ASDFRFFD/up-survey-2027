@@ -48,6 +48,7 @@ const state = {
     supportUrl: '',
     supportUpi: '',
     supportBtnLabel: '',
+    resetAt: 0,
   },
   usingFallbackDemo: false,
   submitting: false,
@@ -1183,6 +1184,7 @@ async function submitVote() {
             issueId: remoteVote.issueId || payload.issueId,
             optionId: remoteVote.optionId || payload.optionId,
             ageGroup: remoteVote.ageGroup === 'skipped' ? null : (remoteVote.ageGroup || null),
+            submittedAt: remoteVote.ts ? new Date(remoteVote.ts).toISOString() : payload.submittedAt,
           };
           saveUserVote(syncedVote);
           state.existingVote = syncedVote;
@@ -1775,6 +1777,7 @@ async function init() {
               supportUrl: String(cfgData.supportUrl || ''),
               supportUpi: String(cfgData.supportUpi || ''),
               supportBtnLabel: String(cfgData.supportBtnLabel || ''),
+              resetAt: Number(cfgData.resetAt) || 0,
             };
           }
         }
@@ -1787,7 +1790,14 @@ async function init() {
     const validOption = existingVote && CONFIG.pollOptions.some((o) => o.id === existingVote.optionId);
     const validIssue = existingVote && CONFIG.issues.some((i) => i.id === existingVote.issueId);
     if (existingVote && seatMap.has(existingVote.acNo) && validOption && validIssue) {
-      if (CONFIG.mode === 'firebase') {
+      const votedMs = Date.parse(existingVote.submittedAt || '') || 0;
+      const wasResetRemotely = state.surveyConfig.resetAt > 0 && votedMs < state.surveyConfig.resetAt;
+      if (wasResetRemotely) {
+        localStorage.removeItem(STORAGE_VOTE_KEY);
+        localStorage.removeItem(STORAGE_FB_AUTH_KEY);
+        localStorage.removeItem(STORAGE_DEMO_DB_KEY);
+        existingVote = null;
+      } else if (CONFIG.mode === 'firebase') {
         const remoteVote = await checkFirebaseExistingVote();
         if (remoteVote === null) {
           localStorage.removeItem(STORAGE_VOTE_KEY);

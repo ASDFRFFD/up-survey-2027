@@ -171,6 +171,7 @@
         supportUrl: String(rawCfg?.supportUrl || ''),
         supportUpi: String(rawCfg?.supportUpi || ''),
         supportBtnLabel: String(rawCfg?.supportBtnLabel || ''),
+        resetAt: Number(rawCfg?.resetAt) || 0,
       };
     } catch (err) {
       console.error(err);
@@ -318,6 +319,7 @@
       supportUrl: String(nextConfig.supportUrl || '').trim(),
       supportUpi: String(nextConfig.supportUpi || '').trim(),
       supportBtnLabel: String(nextConfig.supportBtnLabel || '').trim(),
+      resetAt: Number(state.surveyConfig?.resetAt) || 0,
     };
     const res = await fetch(`${rtdbBase()}/config.json?auth=${encodeURIComponent(tok)}`, {
       method: 'PUT',
@@ -370,15 +372,102 @@
     await recalculateAggregatesFromVotes();
   }
 
+  function clearLocalBrowserTestVote() {
+    try {
+      localStorage.removeItem('up_survey_v3_user_vote');
+      localStorage.removeItem('up_survey_v3_fb_auth');
+      localStorage.removeItem('up_survey_v3_demo_aggregates');
+    } catch {
+      // ignore storage errors
+    }
+  }
+
   async function resetAllSurveyData() {
     const tok = await ensureValidToken();
-    const [r1, r2] = await Promise.all([
+    const nextResetAt = Date.now();
+    const nextCfg = {
+      ...(state.surveyConfig || {}),
+      resetAt: nextResetAt,
+    };
+    const [r1, r2, r3] = await Promise.all([
       fetch(`${rtdbBase()}/votes.json?auth=${encodeURIComponent(tok)}`, { method: 'DELETE' }),
       fetch(`${rtdbBase()}/aggregates.json?auth=${encodeURIComponent(tok)}`, { method: 'DELETE' }),
+      fetch(`${rtdbBase()}/config.json?auth=${encodeURIComponent(tok)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextCfg),
+      }),
     ]);
     if (!r1.ok || !r2.ok) throw new Error('Reset failed');
-    showToast('All survey votes & aggregates cleared!');
+    if (r3.ok) state.surveyConfig = nextCfg;
+    clearLocalBrowserTestVote();
+    showToast('पूरा सर्वे डेटा 0 पर रीसेट हो गया!');
     await loadAllDashboardData();
+  }
+
+  function openResetSurveyModal() {
+    document.getElementById('adminResetModalRoot')?.remove();
+    const totalVotes = Number(state.summary?.totalVotes) || 0;
+    const modal = document.createElement('div');
+    modal.id = 'adminResetModalRoot';
+    modal.className = 'support-modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = `
+      <div class="support-modal-card" style="text-align:left;max-width:440px;">
+        <button type="button" id="resetModalCloseX" class="support-close-x" aria-label="Close">✕</button>
+        <p class="card-eyebrow" style="margin-bottom:4px;">Survey Reset Control</p>
+        <h2 class="support-modal-title" style="margin-bottom:6px;">सर्वे रीसेट विकल्प</h2>
+        <p class="support-modal-desc" style="margin-bottom:14px;">आप सिर्फ़ अपने मोबाइल/ब्राउज़र का टेस्ट वोट रीसेट कर सकते हैं, या पूरा लाइव सर्वे डेटा 0 से शुरू कर सकते हैं।</p>
+
+        <div class="reset-option-box">
+          <div class="reset-option-title">1. सिर्फ़ मेरा ब्राउज़र टेस्ट अनलॉक करें</div>
+          <p class="admin-dist-sub" style="margin:2px 0 8px;">डेटाबेस के लाइव वोट (${totalVotes}) सुरक्षित रहेंगे — बस आपका यह फ़ोन/ब्राउज़र नया टेस्ट वोट देने के लिए खुल जाएगा।</p>
+          <button type="button" id="resetDeviceOnlyBtn" class="btn-back" style="width:100%;">↺ मेरा टेस्ट वोट अनलॉक करें</button>
+        </div>
+
+        <div class="reset-option-box reset-option-box--danger">
+          <div class="reset-option-title" style="color:#b91c1c;">2. पूरा लाइव सर्वे डेटा 0 से रीसेट करें</div>
+          <p class="admin-dist-sub" style="margin:2px 0 8px;">सावधानी: सभी <strong>${totalVotes} लाइव वोट</strong> और सभी 403 सीटों के आंकड़े स्थायी रूप से हट जाएँगे।</p>
+          <input id="resetConfirmInput" type="text" class="dropdown-search-input" placeholder="पुष्टि के लिए RESET लिखें" autocomplete="off" style="margin-bottom:8px;" />
+          <button type="button" id="confirmFullResetBtn" class="admin-danger-btn" style="width:100%;" disabled>⚠ सभी वोट हटाएँ और 0 से शुरू करें</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    document.getElementById('resetModalCloseX')?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    document.getElementById('resetDeviceOnlyBtn')?.addEventListener('click', () => {
+      clearLocalBrowserTestVote();
+      closeModal();
+      showToast('आपका ब्राउज़र टेस्ट अनलॉक हो गया — अब लाइव साइट पर नया वोट दे सकते हैं!');
+    });
+
+    const confirmInput = document.getElementById('resetConfirmInput');
+    const fullBtn = document.getElementById('confirmFullResetBtn');
+    confirmInput?.addEventListener('input', () => {
+      const ok = confirmInput.value.trim().toUpperCase() === 'RESET';
+      fullBtn.disabled = !ok;
+    });
+
+    fullBtn?.addEventListener('click', async () => {
+      if (confirmInput.value.trim().toUpperCase() !== 'RESET') return;
+      fullBtn.disabled = true;
+      fullBtn.textContent = 'रीसेट हो रहा है...';
+      try {
+        await resetAllSurveyData();
+        closeModal();
+      } catch (err) {
+        showToast(err.message);
+        fullBtn.disabled = false;
+        fullBtn.textContent = '⚠ सभी वोट हटाएँ और 0 से शुरू करें';
+      }
+    });
   }
 
   function formatAuthError(code) {
@@ -758,6 +847,7 @@
             <button type="button" id="refreshBtn" class="btn-back">↻ Refresh</button>
             <button type="button" id="exportSeatsBtn" class="invite-use-btn">⬇ 403 Seats CSV</button>
             <button type="button" id="exportDistBtn" class="invite-use-btn">⬇ 75 Districts CSV</button>
+            <button type="button" id="quickResetModalBtn" class="admin-quick-reset-btn">↺ सर्वे रीसेट</button>
           </div>
         </div>
 
@@ -1154,11 +1244,12 @@
       </div>
 
       <div class="metric-section">
-        <h2 class="metric-heading"><span>Data Maintenance</span></h2>
-        <p class="card-subtitle" style="margin-bottom:12px;">Recompute all 403 seat totals & UP summary from raw <code>/votes</code>, or wipe test votes before public launch.</p>
+        <h2 class="metric-heading"><span>Survey Reset & Maintenance (डेटा रीसेट)</span></h2>
+        <p class="card-subtitle" style="margin-bottom:12px;">सभी 403 सीटों का जोड़ दोबारा निकालें, अपने टेस्ट ब्राउज़र को अनलॉक करें, या पूरा सर्वे 0 वोट से रीसेट करें।</p>
         <div class="admin-export-row">
           <button type="button" id="recomputeBtn" class="btn-back">↻ Recalculate Aggregates</button>
-          <button type="button" id="resetAllBtn" class="admin-danger-btn">⚠ Clear All Survey Data</button>
+          <button type="button" id="resetLocalVoteBtn" class="btn-back">↺ मेरा टेस्ट अनलॉक करें</button>
+          <button type="button" id="resetAllBtn" class="admin-danger-btn">⚠ सर्वे 0 से रीसेट करें</button>
         </div>
       </div>
     `;
@@ -1169,6 +1260,7 @@
     document.getElementById('exportSeatsBtn')?.addEventListener('click', exportSeatsCsv);
     document.getElementById('exportDistBtn')?.addEventListener('click', exportDistrictsCsv);
     document.getElementById('exportVotesBtn')?.addEventListener('click', exportVotesCsv);
+    document.getElementById('quickResetModalBtn')?.addEventListener('click', () => openResetSurveyModal());
 
     document.querySelectorAll('[data-admin-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1269,14 +1361,13 @@
       }
     });
 
-    document.getElementById('resetAllBtn')?.addEventListener('click', async () => {
-      const typed = prompt('Type RESET ALL to permanently delete all votes & aggregates:');
-      if (typed !== 'RESET ALL') return;
-      try {
-        await resetAllSurveyData();
-      } catch (err) {
-        showToast(err.message);
-      }
+    document.getElementById('resetLocalVoteBtn')?.addEventListener('click', () => {
+      clearLocalBrowserTestVote();
+      showToast('आपका ब्राउज़र टेस्ट अनलॉक हो गया — अब नया टेस्ट वोट दे सकते हैं!');
+    });
+
+    document.getElementById('resetAllBtn')?.addEventListener('click', () => {
+      openResetSurveyModal();
     });
   }
 
