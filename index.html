@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>2027 में यूपी में किसकी सरकार? | UP जनमत सर्वेक्षण</title>
+  <meta name="description" content="2027 उत्तर प्रदेश विधानसभा चुनाव जनमत सर्वेक्षण — 75 ज़िलों और 403 सीटों के लिए तेज़, निष्पक्ष और गोपनीय सर्वे। लाइव ग्राफ़ ट्रेंड देखें।">
+  <meta name="theme-color" content="#fffbeb">
+
+  <!-- Open Graph for WhatsApp & Facebook link previews -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="2027 में यूपी में किसकी सरकार? — अपनी सीट की राय दें">
+  <meta property="og:description" content="बिना लॉगिन, सिर्फ 20 सेकंड में अपनी विधानसभा का मुख्य मुद्दा और राय साझा करें और लाइव इन्फोग्राफिक्स देखें।">
+
+  <!-- Best-in-class Devanagari (Noto Sans Devanagari) + crisp geometric Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="fl-polish">
+  <!-- Sunlit Yellow-to-Orange atmospheric top glow + subtle grain -->
+  <div class="fl-hero-aura" aria-hidden="true"></div>
+  <div class="fl-hero-grain" aria-hidden="true"></div>
+
+  <!-- Subtle balanced left/right background leader watermarks -->
+  <div id="sideLeadersBg" class="side-leaders-bg" aria-hidden="true"></div>
+
+  <!-- Sticky thin top progress bar -->
+  <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Survey progress">
+    <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
+  </div>
+
+  <div class="app-shell">
+    <!-- Floating frosted-glass pill header -->
+    <header class="fl-nav-wrap">
+      <div class="fl-nav-pill">
+        <div class="brand">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <div class="brand-meta">
+            <span id="brandTitle" class="brand-title">UP जनमत सर्वे</span>
+            <span id="stepIndicator" class="step-pill">UP 2027</span>
+          </div>
+        </div>
+
+        <button id="langToggle" class="lang-toggle" type="button" aria-label="Switch language">
+          <span data-lang-label="hi" class="active">हिन्दी</span>
+          <span class="lang-sep" aria-hidden="true">/</span>
+          <span data-lang-label="en">EN</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main single-question-per-screen card container -->
+    <main id="surveyMain" class="survey-main" aria-live="polite">
+      <div id="stageContainer" class="stage-container">
+        <div class="loading-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <p id="loadingText">सर्वे लोड हो रहा है...</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Cloudflare Turnstile mount container (used when mode === 'api') -->
+    <div id="turnstileMount" class="turnstile-mount" aria-hidden="true"></div>
+  </div>
+
+  <!-- Warm dark footer with amber-orange glow -->
+  <footer class="fl-footer">
+    <div class="fl-footer__glow" aria-hidden="true"></div>
+    <div class="fl-footer__inner">
+      <p id="footerDisclaimer" class="disclaimer-text"></p>
+    </div>
+  </footer>
+
+  <!-- Toast notification for copy/feedback -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script defer src="./data/up-constituencies.js"></script>
+  <script defer src="./src/config.js"></script>
+  <script defer src="./src/app.js"></script>
+</body>
+</html>
