@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Control Panel | UP जनमत सर्वे 2027</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#fffbeb">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="fl-hero-aura" aria-hidden="true"></div>
+
+  <div class="admin-shell">
+    <header class="fl-nav-wrap">
+      <div class="fl-nav-pill">
+        <div class="brand">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <div class="brand-meta">
+            <span class="brand-title">UP सर्वे Admin Panel</span>
+            <span id="adminStatusPill" class="step-pill">Auth Required</span>
+          </div>
+        </div>
+
+        <div class="admin-nav-actions">
+          <a href="./index.html" class="lang-toggle" style="text-decoration:none;">← Live Site</a>
+          <button id="adminSignOutBtn" class="lang-toggle" type="button" hidden>Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="adminRoot" class="admin-main"></main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script defer src="./data/up-constituencies.js"></script>
+  <script defer src="./src/config.js"></script>
+  <script defer src="./src/admin.js"></script>
+</body>
+</html>

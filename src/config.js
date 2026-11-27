@@ -134,6 +134,9 @@ const I18N = {
     splashTrust1: '✓ बिना लॉगिन / OTP',
     splashTrust2: '✓ 100% गुप्त',
     splashTrust3: '✓ लाइव सर्किल व बार ग्राफ़',
+    surveyPausedTitle: 'सर्वे अस्थायी रूप से विराम पर है',
+    surveyPausedDesc: 'अभी नए वोट लेना रोका गया है। आप पूरे उत्तर प्रदेश और किसी भी सीट के लाइव ट्रेंड देख सकते हैं।',
+    viewLiveResultsCta: 'लाइव ट्रेंड देखें →',
 
     step1Eyebrow: 'सवाल 1 • आपका ज़िला',
     step1Title: 'आप उत्तर प्रदेश के किस ज़िले से हैं?',
@@ -228,6 +231,9 @@ const I18N = {
     splashTrust1: '✓ No Login / OTP',
     splashTrust2: '✓ 100% Anonymous',
     splashTrust3: '✓ Live Infographic Trends',
+    surveyPausedTitle: 'Survey Temporarily Paused',
+    surveyPausedDesc: 'New submissions are paused right now. You can still inspect live trends across all 403 UP constituencies.',
+    viewLiveResultsCta: 'View Live Trends →',
 
     step1Eyebrow: 'Question 1 • District',
     step1Title: 'Which district of Uttar Pradesh are you from?',

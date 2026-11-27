@@ -131,3 +131,12 @@ Required one-time setup in Firebase Console (`panchayat-survey-system`):
 2. **Realtime Database → Rules:** Paste and publish the contents of [`database.rules.json`](../database.rules.json) (enforces 1 vote per anonymous UID, strict `+1` increment validation, and valid seat/option/issue enums).
 3. *(Optional hardening)* **App Check:** Register your live domain with reCAPTCHA v3 to block automated script traffic.
 
+---
+
+## 7. Admin Control Panel (`admin.html` + `src/admin.js`)
+Protected by Firebase Email/Password Auth + explicit Admin UID whitelist at `/up_survey_2027/admins/{uid}: true` (not writable by clients):
+1. Enable **Authentication → Sign-in method → Email/Password** in Firebase Console and create your Admin user (`Users → Add user`).
+2. Copy that user's **UID** (or sign in once on `admin.html` to view & copy the UID) and add `/up_survey_2027/admins/{UID}: true` (boolean) in **Realtime Database → Data**.
+3. Features: All-UP KPIs, 403-seat & 75-district searchable tables, UTF-8 Excel CSV exports, individual vote audit & delete, aggregate recalculation, and live survey Pause / Notice Banner toggles.
+
+

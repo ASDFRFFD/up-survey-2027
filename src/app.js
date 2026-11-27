@@ -37,6 +37,7 @@ const state = {
   resultsScope: 'seat', // 'seat' | 'state'
   viewedSeatAc: null,
   aggregates: null, // { seat: {...}, state: {...} }
+  surveyConfig: { paused: false, announcement: '' },
   usingFallbackDemo: false,
   submitting: false,
 };
@@ -307,8 +308,28 @@ function renderSplash() {
       </div>`
     : '';
 
+  const noticeHtml = state.surveyConfig?.announcement
+    ? `<div class="live-notice-banner">${escapeHtml(state.surveyConfig.announcement)}</div>`
+    : '';
+
+  const pausedHtml = state.surveyConfig?.paused
+    ? `
+      <div class="invite-banner" style="text-align:left;">
+        <div>
+          <strong>${escapeHtml(dict.surveyPausedTitle)}</strong>
+          <div class="option-sub">${escapeHtml(dict.surveyPausedDesc)}</div>
+        </div>
+      </div>
+      <button type="button" id="viewPausedResultsBtn" class="btn-primary splash-cta">${escapeHtml(dict.viewLiveResultsCta)}</button>`
+    : `
+      ${inviteHtml}
+      <button type="button" id="startSurveyBtn" class="btn-primary splash-cta">
+        ${escapeHtml(dict.splashStartCta)}
+      </button>`;
+
   el.stage.innerHTML = `
     <section class="card splash-card">
+      ${noticeHtml}
       <div class="splash-badge">
         <span class="splash-pulse" aria-hidden="true"></span>
         <span>${escapeHtml(dict.splashEyebrow)}</span>
@@ -338,11 +359,7 @@ function renderSplash() {
         <div class="splash-stat-pill">${escapeHtml(dict.splashStatTime)}</div>
       </div>
 
-      ${inviteHtml}
-
-      <button type="button" id="startSurveyBtn" class="btn-primary splash-cta">
-        ${escapeHtml(dict.splashStartCta)}
-      </button>
+      ${pausedHtml}
 
       <div class="splash-trust-row">
         <span>${escapeHtml(dict.splashTrust1)}</span>
@@ -354,6 +371,16 @@ function renderSplash() {
 
   document.getElementById('startSurveyBtn')?.addEventListener('click', () => {
     state.step = 1;
+    render();
+  });
+
+  document.getElementById('viewPausedResultsBtn')?.addEventListener('click', async () => {
+    const defaultAc = state.invitedSeatAc || 174;
+    state.answers.acNo = defaultAc;
+    state.viewedSeatAc = defaultAc;
+    await loadSeatBucket(defaultAc);
+    state.resultsScope = 'state';
+    state.step = 6;
     render();
   });
 
@@ -1421,6 +1448,24 @@ async function init() {
     const sharedAc = Number(params.get('seat'));
     if (sharedAc && seatMap.has(sharedAc)) {
       state.invitedSeatAc = sharedAc;
+    }
+
+    if (CONFIG.mode === 'firebase') {
+      try {
+        const cfgUrl = `${CONFIG.firebase.databaseURL.replace(/\/$/, '')}/${CONFIG.firebase.rootPath}/config.json`;
+        const cfgRes = await fetch(cfgUrl);
+        if (cfgRes.ok) {
+          const cfgData = await cfgRes.json();
+          if (cfgData && typeof cfgData === 'object') {
+            state.surveyConfig = {
+              paused: Boolean(cfgData.paused),
+              announcement: String(cfgData.announcement || ''),
+            };
+          }
+        }
+      } catch {
+        // ignore non-fatal config read failures
+      }
     }
 
     const existingVote = getSavedUserVote();
