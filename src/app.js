@@ -49,8 +49,10 @@ const el = {
   progressTrack: document.querySelector('.progress-track'),
   brandTitle: document.getElementById('brandTitle'),
   stepIndicator: document.getElementById('stepIndicator'),
+  headerAdminText: document.getElementById('headerAdminText'),
   langToggle: document.getElementById('langToggle'),
   footerDisclaimer: document.getElementById('footerDisclaimer'),
+  footerAdminText: document.getElementById('footerAdminText'),
   toast: document.getElementById('toast'),
 };
 
@@ -174,6 +176,8 @@ function updateChrome() {
   document.documentElement.lang = state.lang;
   el.brandTitle.textContent = dict.brandTitle;
   el.footerDisclaimer.textContent = dict.footerDisclaimer;
+  if (el.headerAdminText) el.headerAdminText.textContent = dict.adminBtnShort;
+  if (el.footerAdminText) el.footerAdminText.textContent = dict.footerAdminCta;
 
   const pct = state.step === 0 ? 0 : state.step <= 5 ? state.step * 20 : 100;
   el.progressFill.style.width = `${pct}%`;
@@ -286,6 +290,60 @@ function renderSeatOptionsHtml() {
     .join('');
 }
 
+function splashStatIconSvg(kind) {
+  if (kind === 'districts') {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.33-6-10a6 6 0 1 1 12 0c0 4.67-6 10-6 10Z"/><circle cx="12" cy="11" r="2.2"/></svg>`;
+  }
+  if (kind === 'seats') {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 15v-3"/><path d="M12 15V9"/><path d="M17 15v-5"/></svg>`;
+  }
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>`;
+}
+
+const POPULAR_DISTRICT_IDS = [
+  'lucknow',
+  'varanasi',
+  'prayagraj',
+  'kanpur-nagar',
+  'agra',
+  'gorakhpur',
+  'meerut',
+  'ayodhya',
+];
+
+function issueIconSvg(id) {
+  switch (id) {
+    case 'rozgar':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M2 13h20"/></svg>`;
+    case 'mehangai':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h11"/><path d="M6 9h11"/><path d="M6 14l7 7"/><path d="M6 14h4a5 5 0 0 0 0-10"/></svg>`;
+    case 'sadak_bijli':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+    case 'shiksha':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>`;
+    case 'swasthya':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M12 7v6M9 10h6"/></svg>`;
+    case 'kanoon':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>`;
+    case 'kisan':
+    default:
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 22 12 12"/><path d="M9 15c-4-1-6-4-6-8 4 0 7 2 8 6"/><path d="M15 9c-1-4-4-6-8-6 0 4 2 7 6 8"/><path d="M16 14c4-1 6-4 6-8-4 0-7 2-8 6"/></svg>`;
+  }
+}
+
+function ageIconSvg(id) {
+  if (id === '18-25') {
+    return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 5.5L20 11l-5.5 2.5L12 19l-2.5-5.5L4 11l5.5-2.5Z"/></svg>`;
+  }
+  if (id === '26-40') {
+    return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>`;
+  }
+  if (id === '41-60') {
+    return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+  }
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>`;
+}
+
 /* Cover Splash Page: "2027 me kiski sarkar?" */
 function renderSplash() {
   const dict = t();
@@ -354,9 +412,18 @@ function renderSplash() {
       </div>
 
       <div class="splash-stats">
-        <div class="splash-stat-pill">${escapeHtml(dict.splashStatDistricts)}</div>
-        <div class="splash-stat-pill">${escapeHtml(dict.splashStatSeats)}</div>
-        <div class="splash-stat-pill">${escapeHtml(dict.splashStatTime)}</div>
+        <div class="splash-stat-pill">
+          <span class="splash-stat-icon">${splashStatIconSvg('districts')}</span>
+          <span>${escapeHtml(dict.splashStatDistricts)}</span>
+        </div>
+        <div class="splash-stat-pill">
+          <span class="splash-stat-icon">${splashStatIconSvg('seats')}</span>
+          <span>${escapeHtml(dict.splashStatSeats)}</span>
+        </div>
+        <div class="splash-stat-pill">
+          <span class="splash-stat-icon">${splashStatIconSvg('time')}</span>
+          <span>${escapeHtml(dict.splashStatTime)}</span>
+        </div>
       </div>
 
       ${pausedHtml}
@@ -456,6 +523,22 @@ function renderStep1District() {
         </div>
       </div>
 
+      <div class="quick-chips-block">
+        <p class="quick-chips-label">${escapeHtml(dict.quickDistrictsLabel)}</p>
+        <div class="quick-chips-grid">
+          ${POPULAR_DISTRICT_IDS.map((id) => districtMap.get(id))
+            .filter(Boolean)
+            .map(
+              (d) => `
+              <button type="button" class="quick-chip ${selectedDistrict?.id === d.id ? 'selected' : ''}" data-district-id="${escapeHtml(d.id)}">
+                <span>${escapeHtml(labelFor(d))}</span>
+                <span class="quick-chip-count">${d.count || ''}</span>
+              </button>`
+            )
+            .join('')}
+        </div>
+      </div>
+
       <div class="card-actions">
         <button type="button" id="step1BackBtn" class="btn-back">${escapeHtml(dict.back)}</button>
         <button type="button" id="step1NextBtn" class="btn-primary" ${selectedDistrict ? '' : 'disabled'}>
@@ -543,7 +626,29 @@ function bindStep1Events() {
   });
 }
 
-/* Question 2 of 5: Vidhan Sabha Seat Dropdown Only */
+/* Question 2 of 5: Direct-Tap Compact Seat Grid + Live Filter */
+function renderSeatTilesHtml() {
+  const dict = t();
+  const selectedAc = state.answers.acNo;
+  const filteredSeats = getFilteredSeats();
+  if (!filteredSeats.length) {
+    return `<div class="dropdown-empty span-full">${escapeHtml(dict.noMatch)}</div>`;
+  }
+  return filteredSeats
+    .map(
+      (s) => `
+      <button type="button" class="seat-tile ${selectedAc === s.ac ? 'selected' : ''}" data-ac="${s.ac}">
+        <span class="seat-tile-top">
+          <span class="seat-ac-pill">#${s.ac}</span>
+          ${s.res ? `<span class="seat-badge">${escapeHtml(s.res)}</span>` : '<span class="option-check option-check--sm" aria-hidden="true">✓</span>'}
+        </span>
+        <span class="seat-tile-name">${escapeHtml(labelFor(s))}</span>
+        <span class="seat-tile-sub">${escapeHtml(altLabelFor(s))}</span>
+      </button>`
+    )
+    .join('');
+}
+
 function renderStep2Seat() {
   const dict = t();
   const { districtMap, seatMap } = state.data;
@@ -555,43 +660,22 @@ function renderStep2Seat() {
     <section class="card">
       <p class="card-eyebrow">${escapeHtml(dict.step2Eyebrow)}</p>
       <h1 class="card-title">${escapeHtml(dict.step2Title(selectedDistrict ? labelFor(selectedDistrict) : ''))}</h1>
-      <p class="card-subtitle">${escapeHtml(dict.step2Subtitle(districtSeats.length))}</p>
+      <p class="card-subtitle">${escapeHtml(dict.quickSeatsTapHint(districtSeats.length))}</p>
 
-      <div class="dropdown-label">
-        <span>${escapeHtml(dict.seatFieldLabel)}</span>
-        <span class="dropdown-count-badge">${escapeHtml(dict.seatBadge(districtSeats.length))}</span>
+      <div class="dropdown-search-wrap seat-filter-inline">
+        <input
+          id="seatSearch"
+          class="dropdown-search-input"
+          type="text"
+          autocomplete="off"
+          placeholder="${escapeHtml(dict.quickSeatsFilterPlaceholder)}"
+          value="${escapeHtml(state.seatQuery)}"
+        />
+        <button type="button" id="clearSeatBtn" class="clear-input-btn" aria-label="Clear search" ${state.seatQuery ? '' : 'hidden'}>✕</button>
       </div>
 
-      <div class="dropdown-field">
-        <button
-          type="button"
-          id="seatTrigger"
-          class="dropdown-trigger"
-          aria-expanded="${state.seatOpen ? 'true' : 'false'}"
-          aria-controls="seatMenu"
-        >
-          <span class="dropdown-trigger-text ${selectedSeat ? '' : 'is-placeholder'}">
-            ${escapeHtml(selectedSeat ? formatSeatName(selectedSeat) : dict.seatSelectPlaceholder)}
-          </span>
-          ${chevronSvg()}
-        </button>
-
-        <div id="seatMenu" class="dropdown-menu" ${state.seatOpen ? '' : 'hidden'}>
-          <div class="dropdown-search-wrap">
-            <input
-              id="seatSearch"
-              class="dropdown-search-input"
-              type="text"
-              autocomplete="off"
-              placeholder="${escapeHtml(dict.seatPlaceholder)}"
-              value="${escapeHtml(state.seatQuery)}"
-            />
-            <button type="button" id="clearSeatBtn" class="clear-input-btn" aria-label="Clear search" ${state.seatQuery ? '' : 'hidden'}>✕</button>
-          </div>
-          <div id="seatOptionsList" class="dropdown-options" role="listbox">
-            ${renderSeatOptionsHtml()}
-          </div>
-        </div>
+      <div id="seatGridList" class="seat-grid-2" role="listbox">
+        ${renderSeatTilesHtml()}
       </div>
 
       <div class="card-actions">
@@ -618,23 +702,14 @@ function bindSeatOptionClicks() {
 }
 
 function bindStep2Events() {
-  const trigger = document.getElementById('seatTrigger');
-  const menu = document.getElementById('seatMenu');
   const searchInput = document.getElementById('seatSearch');
   const clearBtn = document.getElementById('clearSeatBtn');
-  const optionsList = document.getElementById('seatOptionsList');
-
-  trigger.addEventListener('click', () => {
-    state.seatOpen = !state.seatOpen;
-    trigger.setAttribute('aria-expanded', state.seatOpen ? 'true' : 'false');
-    menu.hidden = !state.seatOpen;
-    if (state.seatOpen) searchInput.focus();
-  });
+  const gridList = document.getElementById('seatGridList');
 
   searchInput.addEventListener('input', (e) => {
     state.seatQuery = e.target.value;
     clearBtn.hidden = !state.seatQuery;
-    optionsList.innerHTML = renderSeatOptionsHtml();
+    gridList.innerHTML = renderSeatTilesHtml();
     bindSeatOptionClicks();
   });
 
@@ -642,7 +717,7 @@ function bindStep2Events() {
     state.seatQuery = '';
     searchInput.value = '';
     clearBtn.hidden = true;
-    optionsList.innerHTML = renderSeatOptionsHtml();
+    gridList.innerHTML = renderSeatTilesHtml();
     bindSeatOptionClicks();
     searchInput.focus();
   });
@@ -663,28 +738,29 @@ function bindStep2Events() {
   });
 }
 
-/* Question 3 of 5: Key Issue */
+/* Question 3 of 5: Key Issue (Compact 2-Column Graphic Grid) */
 function renderStep3Issue() {
   const dict = t();
+  const totalIssues = CONFIG.issues.length;
   el.stage.innerHTML = `
     <section class="card">
       <p class="card-eyebrow">${escapeHtml(dict.step3Eyebrow)}</p>
       <h1 class="card-title">${escapeHtml(dict.step3Title)}</h1>
       <p class="card-subtitle">${escapeHtml(dict.step3Subtitle)}</p>
 
-      <div class="options-stack">
+      <div class="options-grid-2">
         ${CONFIG.issues
-          .map((item) => {
+          .map((item, idx) => {
             const selected = state.answers.issueId === item.id;
+            const isOddLast = idx === totalIssues - 1 && totalIssues % 2 === 1;
             return `
-              <button type="button" class="option-card ${selected ? 'selected' : ''}" data-issue-id="${escapeHtml(item.id)}">
-                <span class="option-left">
-                  <span>
-                    ${escapeHtml(labelFor(item))}
-                    <span class="option-sub">${escapeHtml(altLabelFor(item))}</span>
-                  </span>
+              <button type="button" class="option-tile ${isOddLast ? 'span-full option-tile--wide' : ''} ${selected ? 'selected' : ''}" data-issue-id="${escapeHtml(item.id)}">
+                <span class="issue-icon-badge" aria-hidden="true">${issueIconSvg(item.id)}</span>
+                <span class="option-tile-text">
+                  <span class="option-tile-title">${escapeHtml(labelFor(item))}</span>
+                  <span class="option-sub">${escapeHtml(altLabelFor(item))}</span>
                 </span>
-                <span class="option-check" aria-hidden="true">✓</span>
+                <span class="option-check option-check--sm" aria-hidden="true">✓</span>
               </button>`;
           })
           .join('')}
@@ -724,19 +800,22 @@ function neutralOptionIconSvg(kind) {
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 }
 
-/* Question 4 of 5: Opinion Poll with Party Leader Portraits */
+/* Question 4 of 5: Compact Smart 2-Column Graphic Opinion Poll */
 function renderStep4Poll() {
   const dict = t();
   const primary = state.shuffledPollOptions.filter((o) => !o.pinBottom);
   const pinned = state.shuffledPollOptions.filter((o) => o.pinBottom);
 
-  const renderAvatar = (item) => {
+  const renderAvatar = (item, isTile) => {
     const imgs = item.avatars || (item.avatar ? [item.avatar] : []);
     if (imgs.length) {
       const leaderName = state.lang === 'hi' ? (item.leaderHi || item.hi) : (item.leaderEn || item.en);
       const isPair = imgs.length > 1;
+      const cls = isTile
+        ? `poll-tile-avatar ${isPair ? 'poll-tile-avatar--pair' : ''}`
+        : `option-avatar ${isPair ? 'option-avatar--pair' : ''}`;
       return `
-        <span class="option-avatar ${isPair ? 'option-avatar--pair' : ''}">
+        <span class="${cls}">
           ${imgs
             .map(
               (src) =>
@@ -748,21 +827,42 @@ function renderStep4Poll() {
     return `<span class="option-avatar option-avatar--neutral">${neutralOptionIconSvg(item.icon)}</span>`;
   };
 
-  const renderOpt = (item, isPinned = false) => {
+  const renderPrimary = (item) => {
     const selected = state.answers.optionId === item.id;
     const subText = item.leaderHi
       ? (state.lang === 'hi' ? item.leaderHi : item.leaderEn)
       : altLabelFor(item);
+    if (item.avatar) {
+      return `
+        <button type="button" class="poll-tile ${selected ? 'selected' : ''}" data-option-id="${escapeHtml(item.id)}">
+          <span class="option-check option-check--sm poll-tile-check" aria-hidden="true">✓</span>
+          ${renderAvatar(item, true)}
+          <span class="poll-tile-title">${escapeHtml(labelFor(item))}</span>
+          <span class="poll-tile-sub">${escapeHtml(subText)}</span>
+        </button>`;
+    }
     return `
-      <button type="button" class="option-card ${item.avatar ? 'has-cutout' : ''} ${selected ? 'selected' : ''} ${isPinned ? 'neutral-pinned' : ''}" data-option-id="${escapeHtml(item.id)}">
+      <button type="button" class="option-card option-card--compact span-full ${selected ? 'selected' : ''}" data-option-id="${escapeHtml(item.id)}">
         <span class="option-left">
-          ${renderAvatar(item)}
+          ${renderAvatar(item, false)}
           <span>
             ${escapeHtml(labelFor(item))}
             <span class="option-sub">${escapeHtml(subText)}</span>
           </span>
         </span>
-        <span class="option-check" aria-hidden="true">✓</span>
+        <span class="option-check option-check--sm" aria-hidden="true">✓</span>
+      </button>`;
+  };
+
+  const renderPinned = (item) => {
+    const selected = state.answers.optionId === item.id;
+    return `
+      <button type="button" class="option-tile neutral-pinned ${selected ? 'selected' : ''}" data-option-id="${escapeHtml(item.id)}">
+        <span class="issue-icon-badge issue-icon-badge--neutral" aria-hidden="true">${neutralOptionIconSvg(item.icon)}</span>
+        <span class="option-tile-text">
+          <span class="option-tile-title">${escapeHtml(labelFor(item))}</span>
+        </span>
+        <span class="option-check option-check--sm" aria-hidden="true">✓</span>
       </button>`;
   };
 
@@ -772,10 +872,14 @@ function renderStep4Poll() {
       <h1 class="card-title">${escapeHtml(dict.step4Title)}</h1>
       <p class="card-subtitle">${escapeHtml(dict.step4Subtitle)}</p>
 
-      <div class="options-stack">
-        ${primary.map((o) => renderOpt(o, false)).join('')}
-        <div class="options-divider">${escapeHtml(dict.neutralDivider)}</div>
-        ${pinned.map((o) => renderOpt(o, true)).join('')}
+      <div class="poll-grid-smart">
+        ${primary.map(renderPrimary).join('')}
+      </div>
+
+      <div class="options-divider">${escapeHtml(dict.neutralDivider)}</div>
+
+      <div class="options-grid-2">
+        ${pinned.map(renderPinned).join('')}
       </div>
 
       <div class="card-actions">
@@ -801,7 +905,7 @@ function renderStep4Poll() {
   });
 }
 
-/* Question 5 of 5: Age Group (Optional) */
+/* Question 5 of 5: Age Group (2x2 Graphic Grid, Optional) */
 function renderStep5Age() {
   const dict = t();
   el.stage.innerHTML = `
@@ -810,14 +914,17 @@ function renderStep5Age() {
       <h1 class="card-title">${escapeHtml(dict.step5Title)}</h1>
       <p class="card-subtitle">${escapeHtml(dict.step5Subtitle)}</p>
 
-      <div class="options-stack">
+      <div class="options-grid-2">
         ${CONFIG.ageGroups
           .map((item) => {
             const selected = state.answers.ageGroup === item.id;
             return `
-              <button type="button" class="option-card ${selected ? 'selected' : ''}" data-age-id="${escapeHtml(item.id)}" ${state.submitting ? 'disabled' : ''}>
-                <span class="option-left">${escapeHtml(labelFor(item))}</span>
-                <span class="option-check" aria-hidden="true">✓</span>
+              <button type="button" class="option-tile ${selected ? 'selected' : ''}" data-age-id="${escapeHtml(item.id)}" ${state.submitting ? 'disabled' : ''}>
+                <span class="issue-icon-badge" aria-hidden="true">${ageIconSvg(item.id)}</span>
+                <span class="option-tile-text">
+                  <span class="option-tile-title">${escapeHtml(labelFor(item))}</span>
+                </span>
+                <span class="option-check option-check--sm" aria-hidden="true">✓</span>
               </button>`;
           })
           .join('')}

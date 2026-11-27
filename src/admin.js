@@ -13,6 +13,16 @@
   const optMap = new Map(CONFIG.pollOptions.map((o) => [o.id, o]));
   const issueMap = new Map(CONFIG.issues.map((i) => [i.id, i]));
 
+  const ADMIN_PALETTE = [
+    '#EA580C',
+    '#F59E0B',
+    '#FACC15',
+    '#FB923C',
+    '#D97706',
+    '#64748B',
+    '#CBD5E1',
+  ];
+
   const state = {
     session: null, // { uid, email, idToken, refreshToken, expiresAt }
     isAdmin: false,
@@ -20,6 +30,8 @@
     tab: 'overview', // 'overview' | 'seats' | 'districts' | 'votes' | 'controls'
     search: '',
     sortBy: 'votes_desc',
+    inspectAc: null,
+    inspectDistId: null,
     summary: null,
     seatsAgg: {},
     votes: {},
@@ -501,6 +513,188 @@
     document.getElementById('recheckAdminBtn').addEventListener('click', () => loadAllDashboardData());
   }
 
+  function sortedMetricRows(items, countsMap, total) {
+    return items
+      .map((item) => {
+        const count = Number(countsMap?.[item.id]) || 0;
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        return { item, count, pct };
+      })
+      .sort((a, b) => b.count - a.count);
+  }
+
+  function renderMiniRingSvg(count, total) {
+    const pct = total > 0 ? Math.min(100, Math.round((count / total) * 100)) : 0;
+    const r = 15;
+    const c = 2 * Math.PI * r;
+    const dash = (pct / 100) * c;
+    return `
+      <span class="kpi-ring-wrap" title="${pct}% coverage">
+        <svg class="kpi-ring-svg" width="40" height="40" viewBox="0 0 38 38" aria-hidden="true">
+          <circle cx="19" cy="19" r="${r}" fill="none" stroke="#fde68a" stroke-width="4" />
+          <circle cx="19" cy="19" r="${r}" fill="none" stroke="#ea580c" stroke-width="4" stroke-linecap="round"
+            stroke-dasharray="${dash.toFixed(2)} ${(c - dash).toFixed(2)}" transform="rotate(-90 19 19)" />
+        </svg>
+        <span class="kpi-ring-pct">${pct}%</span>
+      </span>`;
+  }
+
+  function renderStackedStrip(items, countsMap, total, compact = false) {
+    if (!total) {
+      return `<div class="stacked-strip ${compact ? 'is-compact' : ''} is-empty"></div>`;
+    }
+    const rows = sortedMetricRows(items, countsMap, total).filter((r) => r.count > 0);
+    return `
+      <div class="stacked-strip ${compact ? 'is-compact' : ''}">
+        ${rows
+          .map((row, idx) => {
+            const width = ((row.count / total) * 100).toFixed(2);
+            const color = ADMIN_PALETTE[idx % ADMIN_PALETTE.length];
+            return `<span class="stacked-seg" style="width:${width}%;background:${color};" title="${escapeHtml(row.item.hi)}: ${row.pct}% (${row.count})"></span>`;
+          })
+          .join('')}
+      </div>`;
+  }
+
+  function renderAdminDonut(items, countsMap, total, centerLabel) {
+    if (!total) {
+      return `<p class="card-subtitle" style="margin:0;">अभी कोई वोट दर्ज नहीं है।</p>`;
+    }
+    const rows = sortedMetricRows(items, countsMap, total);
+    const r = 64;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+
+    const segments = rows
+      .filter((row) => row.count > 0)
+      .map((row, idx) => {
+        const segLen = (row.count / total) * circumference;
+        const color = ADMIN_PALETTE[idx % ADMIN_PALETTE.length];
+        const circleSvg = `<circle cx="90" cy="90" r="${r}" fill="none" stroke="${color}" stroke-width="26"
+          stroke-dasharray="${segLen.toFixed(2)} ${(circumference - segLen).toFixed(2)}"
+          stroke-dashoffset="${(-offset).toFixed(2)}" />`;
+        offset += segLen;
+        return circleSvg;
+      });
+
+    return `
+      ${renderStackedStrip(items, countsMap, total, false)}
+      <div class="donut-layout" style="margin-bottom:0;margin-top:10px;">
+        <div class="donut-wrap">
+          <svg class="donut-svg" viewBox="0 0 180 180" role="img" aria-label="Opinion breakdown">
+            <circle cx="90" cy="90" r="${r}" fill="none" stroke="#f3f0ea" stroke-width="26" />
+            ${segments.join('')}
+          </svg>
+          <div class="donut-center">
+            <span class="donut-center-num">${total}</span>
+            <span class="donut-center-label">${escapeHtml(centerLabel)}</span>
+          </div>
+        </div>
+        <div class="donut-legend">
+          ${rows
+            .map((row, idx) => {
+              const color = row.count > 0 ? ADMIN_PALETTE[idx % ADMIN_PALETTE.length] : '#e5e7eb';
+              return `
+                <div class="legend-item ${idx === 0 && row.count > 0 ? 'is-pick' : ''}">
+                  <span class="legend-left">
+                    <span class="legend-swatch" style="background:${color};"></span>
+                    ${row.item.avatar ? `<img class="mini-avatar" src="${escapeHtml(row.item.avatar)}" alt="" />` : ''}
+                    <span class="legend-name">${escapeHtml(row.item.hi)}</span>
+                  </span>
+                  <span class="legend-pct">${row.pct}% (${row.count})</span>
+                </div>`;
+            })
+            .join('')}
+        </div>
+      </div>`;
+  }
+
+  function renderAdminRankedBars(items, countsMap, total) {
+    if (!total) {
+      return `<p class="card-subtitle" style="margin:0;">अभी कोई डेटा दर्ज नहीं है।</p>`;
+    }
+    const rows = sortedMetricRows(items, countsMap, total);
+    return `
+      <div class="bar-list">
+        ${rows
+          .map(
+            ({ item, count, pct }, idx) => `
+          <div class="bar-row">
+            <div class="bar-header">
+              <span class="bar-label ${idx === 0 && count > 0 ? 'user-pick' : ''}">
+                <span class="bar-rank">#${idx + 1}</span>
+                <span>${escapeHtml(item.hi)}</span>
+              </span>
+              <span class="bar-pct ${idx === 0 && count > 0 ? 'is-top' : ''}">${pct}% (${count})</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill ${idx === 0 ? 'primary' : ''}" style="width:${pct}%;"></div></div>
+          </div>`
+          )
+          .join('')}
+      </div>`;
+  }
+
+  function renderAdminAgeColumns(agesMap, total) {
+    if (!total) {
+      return `<p class="card-subtitle" style="margin:0;">अभी कोई डेटा दर्ज नहीं है।</p>`;
+    }
+    const skipped = Number(agesMap?.skipped) || 0;
+    return `
+      <div class="col-chart" role="img" aria-label="Age group breakdown">
+        ${CONFIG.ageGroups
+          .map((item) => {
+            const count = Number(agesMap?.[item.id]) || 0;
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            return `
+              <div class="col-item ${count > 0 ? 'is-pick' : ''}">
+                <span class="col-pct">${pct}%</span>
+                <div class="col-track">
+                  <div class="col-pillar ${count > 0 ? 'is-pick' : ''}" style="height:${Math.max(pct, 4)}%;"></div>
+                </div>
+                <span class="col-label">${escapeHtml(item.id)} (${count})</span>
+              </div>`;
+          })
+          .join('')}
+      </div>
+      ${skipped ? `<p class="admin-dist-sub" style="margin-top:8px;">आयु स्किप करने वाले वोट: ${skipped}</p>` : ''}`;
+  }
+
+  function renderTopDistrictsBars() {
+    const distAgg = computeDistrictAggregates();
+    const active = RAW_DATA.districts
+      .map((d) => ({ d, agg: distAgg.get(d.id) }))
+      .filter((x) => x.agg.totalVotes > 0)
+      .sort((a, b) => b.agg.totalVotes - a.agg.totalVotes)
+      .slice(0, 8);
+
+    if (!active.length) {
+      return `<p class="card-subtitle" style="margin:0;">वोट आते ही शीर्ष सक्रिय ज़िले यहाँ ग्राफ़ में दिखेंगे।</p>`;
+    }
+    const maxV = active[0].agg.totalVotes || 1;
+    return `
+      <div class="bar-list">
+        ${active
+          .map(({ d, agg }, idx) => {
+            const relW = Math.max(6, Math.round((agg.totalVotes / maxV) * 100));
+            const top = topKey(agg.options);
+            const leadName = top ? (optMap.get(top.key)?.hi || top.key) : '—';
+            const leadPct = top && agg.totalVotes ? Math.round((top.count / agg.totalVotes) * 100) : 0;
+            return `
+              <div class="bar-row">
+                <div class="bar-header">
+                  <span class="bar-label">
+                    <span class="bar-rank">#${idx + 1}</span>
+                    <span>${escapeHtml(d.hi)} <small class="admin-dist-sub">(${agg.activeSeats}/${d.count} सीट • ${escapeHtml(leadName)} ${leadPct}%)</small></span>
+                  </span>
+                  <span class="bar-pct ${idx === 0 ? 'is-top' : ''}">${agg.totalVotes} वोट</span>
+                </div>
+                <div class="bar-track"><div class="bar-fill ${idx === 0 ? 'primary' : ''}" style="width:${relW}%;"></div></div>
+              </div>`;
+          })
+          .join('')}
+      </div>`;
+  }
+
   function renderDashboard() {
     statusPill.textContent = state.surveyConfig?.paused ? 'Survey Paused' : 'Live Admin';
     signOutBtn.hidden = false;
@@ -529,8 +723,8 @@
       <section class="card admin-panel-card">
         <div class="admin-header-row">
           <div>
-            <p class="card-eyebrow">All-UP Control Center</p>
-            <h1 class="card-title">उत्तर प्रदेश 403 सीटें — Admin Dashboard</h1>
+            <p class="card-eyebrow">All-UP Visual Analytics & Control</p>
+            <h1 class="card-title">उत्तर प्रदेश 403 सीटें — Smart Admin Dashboard</h1>
           </div>
           <div class="admin-export-row">
             <button type="button" id="refreshBtn" class="btn-back">↻ Refresh</button>
@@ -543,14 +737,21 @@
           <div class="kpi-card">
             <span class="kpi-label">कुल लाइव वोट</span>
             <span class="kpi-value">${totalVotes}</span>
+            <span class="admin-dist-sub">${topIss ? `मुद्दा: ${escapeHtml(issueMap.get(topIss.key)?.hi || '')}` : 'रियल-टाइम डेटा'}</span>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">सक्रिय सीटें</span>
-            <span class="kpi-value">${seatKeys.length} / 403</span>
+          <div class="kpi-card kpi-card--ring">
+            ${renderMiniRingSvg(seatKeys.length, 403)}
+            <div>
+              <span class="kpi-label">सक्रिय सीटें</span>
+              <span class="kpi-value">${seatKeys.length} / 403</span>
+            </div>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">सक्रिय ज़िले</span>
-            <span class="kpi-value">${activeDists.size} / 75</span>
+          <div class="kpi-card kpi-card--ring">
+            ${renderMiniRingSvg(activeDists.size, 75)}
+            <div>
+              <span class="kpi-label">सक्रिय ज़िले</span>
+              <span class="kpi-value">${activeDists.size} / 75</span>
+            </div>
           </div>
           <div class="kpi-card">
             <span class="kpi-label">शीर्ष प्राथमिकता</span>
@@ -559,7 +760,7 @@
         </div>
 
         <div class="admin-tabs" role="tablist">
-          <button type="button" class="admin-tab ${state.tab === 'overview' ? 'active' : ''}" data-admin-tab="overview">State Overview</button>
+          <button type="button" class="admin-tab ${state.tab === 'overview' ? 'active' : ''}" data-admin-tab="overview">Visual Graphs</button>
           <button type="button" class="admin-tab ${state.tab === 'seats' ? 'active' : ''}" data-admin-tab="seats">403 Seats</button>
           <button type="button" class="admin-tab ${state.tab === 'districts' ? 'active' : ''}" data-admin-tab="districts">75 Districts</button>
           <button type="button" class="admin-tab ${state.tab === 'votes' ? 'active' : ''}" data-admin-tab="votes">Vote Audit (${Object.keys(state.votes || {}).length})</button>
@@ -574,31 +775,26 @@
   }
 
   function renderOverviewTab(totalVotes) {
-    const renderMiniBars = (items, mapObj) =>
-      items
-        .map((it) => {
-          const c = Number(mapObj?.[it.id]) || 0;
-          const pct = totalVotes ? Math.round((c / totalVotes) * 100) : 0;
-          return `
-            <div class="bar-row">
-              <div class="bar-header">
-                <span class="bar-label">${escapeHtml(it.hi)}</span>
-                <span class="bar-pct">${pct}% (${c})</span>
-              </div>
-              <div class="bar-track"><div class="bar-fill primary" style="width:${pct}%;"></div></div>
-            </div>`;
-        })
-        .join('');
-
     return `
-      <div class="admin-two-col">
+      <div class="admin-charts-grid">
         <div class="metric-section">
-          <h2 class="metric-heading"><span>All-UP जनमत ट्रेंड</span><span class="metric-tag">${totalVotes} वोट</span></h2>
-          <div class="bar-list">${renderMiniBars(CONFIG.pollOptions, state.summary?.options)}</div>
+          <h2 class="metric-heading"><span>All-UP जनमत शेयर</span><span class="metric-tag">सर्किल ग्राफ़</span></h2>
+          ${renderAdminDonut(CONFIG.pollOptions, state.summary?.options, totalVotes, 'कुल वोट')}
         </div>
+
         <div class="metric-section">
-          <h2 class="metric-heading"><span>All-UP मुख्य मुद्दे</span><span class="metric-tag">7 मुद्दे</span></h2>
-          <div class="bar-list">${renderMiniBars(CONFIG.issues, state.summary?.issues)}</div>
+          <h2 class="metric-heading"><span>All-UP मुख्य मुद्दे (रैंकिंग)</span><span class="metric-tag">बार ग्राफ़</span></h2>
+          ${renderAdminRankedBars(CONFIG.issues, state.summary?.issues, totalVotes)}
+        </div>
+
+        <div class="metric-section">
+          <h2 class="metric-heading"><span>आयु वर्ग वितरण</span><span class="metric-tag">कॉलम ग्राफ़</span></h2>
+          ${renderAdminAgeColumns(state.summary?.ages, totalVotes)}
+        </div>
+
+        <div class="metric-section">
+          <h2 class="metric-heading"><span>शीर्ष सक्रिय ज़िले (वोट संख्या)</span><span class="metric-tag">ज़िला तुलना</span></h2>
+          ${renderTopDistrictsBars()}
         </div>
       </div>
     `;
@@ -613,7 +809,7 @@
       const topOpt = topKey(agg.options);
       const topIss = topKey(agg.issues);
       const pct = total && topOpt ? Math.round((topOpt.count / total) * 100) : 0;
-      return { s, dist, total, topOpt, topIss, pct };
+      return { s, dist, agg, total, topOpt, topIss, pct };
     });
 
     if (q) {
@@ -632,7 +828,30 @@
       rows.sort((a, b) => a.s.ac - b.s.ac);
     }
 
+    let inspectorHtml = '';
+    if (state.inspectAc && seatMap.has(state.inspectAc)) {
+      const s = seatMap.get(state.inspectAc);
+      const d = distMap.get(s.d);
+      const agg = state.seatsAgg[String(s.ac)] || {};
+      const total = Number(agg.totalVotes) || 0;
+      inspectorHtml = `
+        <div class="admin-inspector-card">
+          <div class="admin-inspector-head">
+            <div>
+              <p class="card-eyebrow" style="margin-bottom:2px;">विधानसभा ग्राफ़ विश्लेषण</p>
+              <h3 class="metric-heading" style="margin:0;">#${s.ac} ${escapeHtml(s.hi)} (${escapeHtml(d?.hi || '')}) — ${total} वोट</h3>
+            </div>
+            <button type="button" id="closeInspectorBtn" class="admin-close-btn">✕ बंद करें</button>
+          </div>
+          <div class="admin-charts-grid">
+            <div>${renderAdminDonut(CONFIG.pollOptions, agg.options, total, 'सीट वोट')}</div>
+            <div>${renderAdminRankedBars(CONFIG.issues, agg.issues, total)}</div>
+          </div>
+        </div>`;
+    }
+
     return `
+      ${inspectorHtml}
       <div class="admin-toolbar">
         <input id="adminSearchInput" class="dropdown-search-input" type="text" placeholder="सीट, नंबर (174) या ज़िला खोजें..." value="${escapeHtml(state.search)}" />
         <select id="adminSortSelect" class="native-select" style="max-width:210px;">
@@ -648,20 +867,25 @@
               <th>विधानसभा सीट</th>
               <th>ज़िला</th>
               <th>वोट</th>
-              <th>लीडिंग विकल्प</th>
+              <th>ग्राफ़ ट्रेंड (लीडिंग)</th>
               <th>प्रमुख मुद्दा</th>
+              <th>ग्राफ़</th>
             </tr>
           </thead>
           <tbody>
             ${rows
-              .map(({ s, dist, total, topOpt, topIss, pct }) => `
+              .map(({ s, dist, agg, total, topOpt, topIss, pct }) => `
                 <tr>
                   <td><strong>${s.ac}</strong></td>
                   <td>${escapeHtml(s.hi)} ${s.res ? `<span class="seat-badge">${escapeHtml(s.res)}</span>` : ''}</td>
                   <td>${escapeHtml(dist?.hi || '')}</td>
                   <td><strong>${total}</strong></td>
-                  <td>${topOpt ? `${escapeHtml(optMap.get(topOpt.key)?.hi || topOpt.key)} (${pct}%)` : '—'}</td>
+                  <td style="min-width:170px;">
+                    ${renderStackedStrip(CONFIG.pollOptions, agg.options, total, true)}
+                    <div class="admin-dist-sub">${topOpt ? `${escapeHtml(optMap.get(topOpt.key)?.hi || topOpt.key)} (${pct}%)` : 'कोई डेटा नहीं'}</div>
+                  </td>
                   <td>${topIss ? escapeHtml(issueMap.get(topIss.key)?.hi || topIss.key) : '—'}</td>
+                  <td><button type="button" class="admin-graph-btn" data-inspect-ac="${s.ac}">ग्राफ़</button></td>
                 </tr>`)
               .join('')}
           </tbody>
@@ -679,7 +903,28 @@
     }
     rows.sort((a, b) => b.agg.totalVotes - a.agg.totalVotes || a.d.en.localeCompare(b.d.en));
 
+    let inspectorHtml = '';
+    if (state.inspectDistId && distMap.has(state.inspectDistId)) {
+      const d = distMap.get(state.inspectDistId);
+      const agg = distAgg.get(d.id);
+      inspectorHtml = `
+        <div class="admin-inspector-card">
+          <div class="admin-inspector-head">
+            <div>
+              <p class="card-eyebrow" style="margin-bottom:2px;">ज़िला ग्राफ़ विश्लेषण</p>
+              <h3 class="metric-heading" style="margin:0;">${escapeHtml(d.hi)} (${escapeHtml(d.en)}) — ${agg.totalVotes} वोट (${agg.activeSeats}/${d.count} सीटें)</h3>
+            </div>
+            <button type="button" id="closeInspectorBtn" class="admin-close-btn">✕ बंद करें</button>
+          </div>
+          <div class="admin-charts-grid">
+            <div>${renderAdminDonut(CONFIG.pollOptions, agg.options, agg.totalVotes, 'ज़िला वोट')}</div>
+            <div>${renderAdminRankedBars(CONFIG.issues, agg.issues, agg.totalVotes)}</div>
+          </div>
+        </div>`;
+    }
+
     return `
+      ${inspectorHtml}
       <div class="admin-toolbar">
         <input id="adminSearchInput" class="dropdown-search-input" type="text" placeholder="75 ज़िलों में खोजें..." value="${escapeHtml(state.search)}" />
       </div>
@@ -690,7 +935,8 @@
               <th>ज़िला</th>
               <th>सीटें (सक्रिय / कुल)</th>
               <th>कुल वोट</th>
-              <th>लीडिंग विकल्प</th>
+              <th>ग्राफ़ ट्रेंड (लीडिंग)</th>
+              <th>ग्राफ़</th>
             </tr>
           </thead>
           <tbody>
@@ -703,7 +949,11 @@
                     <td><strong>${escapeHtml(d.hi)}</strong> <span class="dropdown-sub">${escapeHtml(d.en)}</span></td>
                     <td>${agg.activeSeats} / ${d.count}</td>
                     <td><strong>${agg.totalVotes}</strong></td>
-                    <td>${topOpt ? `${escapeHtml(optMap.get(topOpt.key)?.hi || topOpt.key)} (${pct}%)` : '—'}</td>
+                    <td style="min-width:170px;">
+                      ${renderStackedStrip(CONFIG.pollOptions, agg.options, agg.totalVotes, true)}
+                      <div class="admin-dist-sub">${topOpt ? `${escapeHtml(optMap.get(topOpt.key)?.hi || topOpt.key)} (${pct}%)` : 'कोई डेटा नहीं'}</div>
+                    </td>
+                    <td><button type="button" class="admin-graph-btn" data-inspect-dist="${escapeHtml(d.id)}">ग्राफ़</button></td>
                   </tr>`;
               })
               .join('')}
@@ -800,8 +1050,32 @@
       btn.addEventListener('click', () => {
         state.tab = btn.dataset.adminTab;
         state.search = '';
+        state.inspectAc = null;
+        state.inspectDistId = null;
         render();
       });
+    });
+
+    document.querySelectorAll('[data-inspect-ac]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.inspectAc = Number(btn.dataset.inspectAc);
+        render();
+        root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    document.querySelectorAll('[data-inspect-dist]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.inspectDistId = btn.dataset.inspectDist;
+        render();
+        root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    document.getElementById('closeInspectorBtn')?.addEventListener('click', () => {
+      state.inspectAc = null;
+      state.inspectDistId = null;
+      render();
     });
 
     const searchInput = document.getElementById('adminSearchInput');

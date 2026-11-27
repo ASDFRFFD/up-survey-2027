@@ -44,11 +44,18 @@
           </div>
         </div>
 
-        <button id="langToggle" class="lang-toggle" type="button" aria-label="Switch language">
-          <span data-lang-label="hi" class="active">हिन्दी</span>
-          <span class="lang-sep" aria-hidden="true">/</span>
-          <span data-lang-label="en">EN</span>
-        </button>
+        <div class="nav-right">
+          <a id="headerAdminLink" href="./admin.html" class="nav-admin-btn" aria-label="Admin Login">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span id="headerAdminText">Admin</span>
+          </a>
+
+          <button id="langToggle" class="lang-toggle" type="button" aria-label="Switch language">
+            <span data-lang-label="hi" class="active">हिन्दी</span>
+            <span class="lang-sep" aria-hidden="true">/</span>
+            <span data-lang-label="en">EN</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -71,6 +78,12 @@
     <div class="fl-footer__glow" aria-hidden="true"></div>
     <div class="fl-footer__inner">
       <p id="footerDisclaimer" class="disclaimer-text"></p>
+      <div class="footer-admin-row">
+        <a id="footerAdminLink" href="./admin.html" class="footer-admin-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span id="footerAdminText">Admin कंट्रोल लॉगिन →</span>
+        </a>
+      </div>
     </div>
   </footer>
 

@@ -206,6 +206,11 @@ const I18N = {
 
     footerDisclaimer:
       'अस्वीकरण: यह एक स्वतंत्र जनमत सर्वेक्षण (Independent Public Opinion Survey) है। यह किसी राजनीतिक दल, निर्वाचन आयोग (ECI) या सरकारी पोर्टल से संबद्ध नहीं है और न ही यह आधिकारिक चुनावी परिणाम है।',
+    adminBtnShort: 'Admin',
+    footerAdminCta: 'Admin कंट्रोल लॉगिन →',
+    quickDistrictsLabel: 'प्रमुख ज़िले (1-टैप चुनें):',
+    quickSeatsTapHint: (n) => `अपनी सीट पर सीधे टैप करें (${n} सीटें)`,
+    quickSeatsFilterPlaceholder: 'सीट का नाम या नंबर लिखकर फ़िल्टर करें...',
   },
   en: {
     brandTitle: 'UP Opinion Survey',
@@ -303,6 +308,11 @@ const I18N = {
 
     footerDisclaimer:
       'Disclaimer: This is an independent public opinion survey. It is not affiliated with any political party, the Election Commission of India, or any government website, and is not official election data.',
+    adminBtnShort: 'Admin',
+    footerAdminCta: 'Admin Control Login →',
+    quickDistrictsLabel: 'Popular districts (1-tap):',
+    quickSeatsTapHint: (n) => `Tap your seat directly (${n} seats)`,
+    quickSeatsFilterPlaceholder: 'Filter by seat name or AC number...',
   },
 };
 
