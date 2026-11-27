@@ -5,6 +5,7 @@ const STORAGE_VOTE_KEY = 'up_survey_v3_user_vote';
 const STORAGE_DEMO_DB_KEY = 'up_survey_v3_demo_aggregates';
 const STORAGE_FB_AUTH_KEY = 'up_survey_v3_fb_auth';
 const STORAGE_LANG_KEY = 'up_survey_v1_lang';
+const STORAGE_SUPPORTER_KEY = 'up_survey_v3_supporter_unlocked';
 
 const CHART_PALETTE = [
   '#EA580C', // Deep Orange
@@ -41,7 +42,9 @@ const state = {
   pendingSupportPopup: false,
   surveyConfig: {
     paused: false,
+    closed: false,
     announcement: '',
+    lockStateResults: true,
     supportEnabled: true,
     bondinUsername: 'uppoll2027',
     supportTitle: '',
@@ -173,6 +176,23 @@ function getSavedUserVote() {
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
+  }
+}
+
+function isSupporterUnlocked() {
+  try {
+    return localStorage.getItem(STORAGE_SUPPORTER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setSupporterUnlocked(val) {
+  try {
+    if (val) localStorage.setItem(STORAGE_SUPPORTER_KEY, '1');
+    else localStorage.removeItem(STORAGE_SUPPORTER_KEY);
+  } catch {
+    // ignore storage errors
   }
 }
 
@@ -1449,8 +1469,10 @@ function openSupportModal() {
     if (e.target === modal) closeSupportModal();
   });
   document.getElementById('bondinSupportWidget')?.addEventListener('bondin:success', () => {
-    showToast(state.lang === 'hi' ? 'धन्यवाद! आपका सहयोग प्राप्त हुआ 🙏' : 'Thank you for your support! 🙏');
+    setSupporterUnlocked(true);
+    showToast(t().supporterUnlockedToast);
     closeSupportModal();
+    if (state.step === 4) renderResults();
   });
   document.getElementById('supportCopyUpiBtn')?.addEventListener('click', async () => {
     try {
@@ -1462,13 +1484,29 @@ function openSupportModal() {
   });
 }
 
+function renderClosedNotice() {
+  const dict = t();
+  const customNote = state.surveyConfig?.announcement;
+  el.stage.innerHTML = `
+    <section class="card closed-notice-card">
+      <div class="closed-icon-badge" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9h6v6H9z"/></svg>
+      </div>
+      <h1 class="card-title">${escapeHtml(dict.surveyClosedTitle)}</h1>
+      <p class="card-subtitle" style="margin-bottom:0;">${escapeHtml(customNote || dict.surveyClosedDefaultDesc)}</p>
+    </section>
+  `;
+}
+
 function renderResults() {
   const dict = t();
-  const activeAc = state.viewedSeatAc || state.answers.acNo;
+  const lockActive = Boolean(state.surveyConfig?.lockStateResults && hasSupportConfig() && !isSupporterUnlocked());
+  const activeAc = lockActive ? state.answers.acNo : (state.viewedSeatAc || state.answers.acNo);
   const seat = state.data.seatMap.get(activeAc);
   const votedSeat = state.data.seatMap.get(state.answers.acNo);
   const seatShort = seat ? labelFor(seat) : `#${activeAc}`;
   const votedSeatShort = votedSeat ? labelFor(votedSeat) : `#${state.answers.acNo}`;
+  const isStateTabLocked = lockActive && state.resultsScope === 'state';
   const bucket = state.resultsScope === 'seat' ? state.aggregates?.seat : state.aggregates?.state;
   const total = bucket?.totalVotes || 0;
 
@@ -1481,6 +1519,113 @@ function renderResults() {
 
   const isViewingOwnSeat = activeAc === state.answers.acNo;
   const showPick = state.resultsScope === 'state' || isViewingOwnSeat;
+
+  const bondinUser = safeBondinUsername(state.surveyConfig?.bondinUsername);
+  const extUrl = safeExternalUrl(state.surveyConfig?.supportUrl);
+  const unlockCtaLabel = state.surveyConfig?.supportBtnLabel || dict.allUpLockedCta;
+
+  const seatBodyHtml = `
+    ${
+      lockActive
+        ? `<div class="results-filter-box" style="margin-bottom:14px;">
+             <span class="results-filter-label" style="margin:0;">🔒 ${escapeHtml(dict.seatSwitcherLockedHint)}</span>
+           </div>`
+        : `<div class="results-filter-box">
+            <label class="results-filter-label" for="resultsSeatSelect">${escapeHtml(dict.seatSwitcherLabel)}</label>
+            <div class="native-select-wrap">
+              <select id="resultsSeatSelect" class="native-select">
+                ${state.data.districts
+                  .map((dist) => {
+                    const dSeats = getSeatsForDistrict(dist.id);
+                    const groupLabel = `${labelFor(dist)} — ${altLabelFor(dist)} (${dSeats.length})`;
+                    return `
+                      <optgroup label="${escapeHtml(groupLabel)}">
+                        ${dSeats
+                          .map((s) => `<option value="${s.ac}" ${s.ac === activeAc ? 'selected' : ''}>${escapeHtml(formatSeatName(s))}</option>`)
+                          .join('')}
+                      </optgroup>`;
+                  })
+                  .join('')}
+              </select>
+              <span class="native-select-arrow" aria-hidden="true">▾</span>
+            </div>
+          </div>`
+    }
+  `;
+
+  const lockedStateHtml = `
+    <div class="locked-up-card">
+      <div class="locked-blur-bars" aria-hidden="true">
+        <div class="locked-bar" style="width:78%;"></div>
+        <div class="locked-bar" style="width:54%;"></div>
+        <div class="locked-bar" style="width:36%;"></div>
+      </div>
+      <div class="locked-up-overlay">
+        <span class="locked-pill">🔒 All-UP 403 Seats</span>
+        <h2 class="support-modal-title" style="text-align:center;">${escapeHtml(dict.allUpLockedTitle)}</h2>
+        <p class="support-modal-desc" style="text-align:center;margin-bottom:14px;">${escapeHtml(dict.allUpLockedDesc)}</p>
+        ${
+          bondinUser
+            ? `<bondin-support id="bondinUnlockAllUp" username="${escapeHtml(bondinUser)}" placement="up-unlock-state" label="${escapeHtml(unlockCtaLabel)}">
+                <a class="btn-primary support-cta-link" href="https://bondin.io/${encodeURIComponent(bondinUser)}/support" target="_blank" rel="noopener noreferrer">${escapeHtml(unlockCtaLabel)}</a>
+              </bondin-support>`
+            : extUrl
+              ? `<a class="btn-primary support-cta-link" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(unlockCtaLabel)}</a>`
+              : `<button type="button" id="openLockSupportBtn" class="btn-primary">${escapeHtml(unlockCtaLabel)}</button>`
+        }
+      </div>
+    </div>
+  `;
+
+  const chartsBodyHtml = `
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">${escapeHtml(dict.kpiVotes)}</span>
+        <span class="kpi-value">${total}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">${escapeHtml(dict.kpiTopIssue)}</span>
+        <span class="kpi-value">${escapeHtml(topIssueRow && topIssueRow.count > 0 ? labelFor(topIssueRow.item).split(' ')[0] : '—')}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">${escapeHtml(dict.kpiTopTrend)}</span>
+        <span class="kpi-value">${topPollRow && topPollRow.count > 0 ? `${topPollRow.pct}%` : '—'}</span>
+      </div>
+    </div>
+
+    <div class="metric-section">
+      <h2 class="metric-heading">
+        <span>${escapeHtml(dict.pollTrendHeading)}</span>
+        <span class="metric-tag">${escapeHtml(dict.circleTag)}</span>
+      </h2>
+      ${
+        total
+          ? `${renderDonutInfographic(CONFIG.pollOptions, bucket?.options, total, showPick ? state.answers.optionId : null)}
+             ${renderBarGroup(CONFIG.pollOptions, bucket?.options, total, showPick ? state.answers.optionId : null, false)}`
+          : `<p class="card-subtitle" style="margin-bottom:0;">${escapeHtml(dict.noDataYet)}</p>`
+      }
+    </div>
+
+    <div class="metric-section">
+      <h2 class="metric-heading">
+        <span>${escapeHtml(dict.topIssuesHeading)}</span>
+        <span class="metric-tag">${escapeHtml(dict.barTag)}</span>
+      </h2>
+      ${renderBarGroup(CONFIG.issues, bucket?.issues, total, showPick ? state.answers.issueId : null, true)}
+    </div>
+
+    ${
+      CONFIG.ageGroups.some((g) => (bucket?.ages?.[g.id] || 0) > 0)
+        ? `<div class="metric-section">
+            <h2 class="metric-heading">
+              <span>${escapeHtml(dict.ageHeading)}</span>
+              <span class="metric-tag">${escapeHtml(dict.columnTag)}</span>
+            </h2>
+            ${renderAgeColumnGraph(CONFIG.ageGroups, bucket?.ages, total, showPick ? state.answers.ageGroup : null)}
+          </div>`
+        : ''
+    }
+  `;
 
   el.stage.innerHTML = `
     <section class="card">
@@ -1508,85 +1653,12 @@ function renderResults() {
           ${escapeHtml(dict.tabSeat(seatShort))}
         </button>
         <button type="button" role="tab" class="scope-tab ${state.resultsScope === 'state' ? 'active' : ''}" data-scope="state" aria-selected="${state.resultsScope === 'state'}">
-          ${escapeHtml(dict.tabState)}
+          ${lockActive ? '🔒 ' : ''}${escapeHtml(dict.tabState)}
         </button>
       </div>
 
-      ${
-        state.resultsScope === 'seat'
-          ? `<div class="results-filter-box">
-              <label class="results-filter-label" for="resultsSeatSelect">${escapeHtml(dict.seatSwitcherLabel)}</label>
-              <div class="native-select-wrap">
-                <select id="resultsSeatSelect" class="native-select">
-                  ${state.data.districts
-                    .map((dist) => {
-                      const dSeats = getSeatsForDistrict(dist.id);
-                      const groupLabel = `${labelFor(dist)} — ${altLabelFor(dist)} (${dSeats.length})`;
-                      return `
-                        <optgroup label="${escapeHtml(groupLabel)}">
-                          ${dSeats
-                            .map((s) => `<option value="${s.ac}" ${s.ac === activeAc ? 'selected' : ''}>${escapeHtml(formatSeatName(s))}</option>`)
-                            .join('')}
-                        </optgroup>`;
-                    })
-                    .join('')}
-                </select>
-                <span class="native-select-arrow" aria-hidden="true">▾</span>
-              </div>
-            </div>`
-          : ''
-      }
-
-      <!-- Infographic KPI Strip -->
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <span class="kpi-label">${escapeHtml(dict.kpiVotes)}</span>
-          <span class="kpi-value">${total}</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">${escapeHtml(dict.kpiTopIssue)}</span>
-          <span class="kpi-value">${escapeHtml(topIssueRow && topIssueRow.count > 0 ? labelFor(topIssueRow.item).split(' ')[0] : '—')}</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">${escapeHtml(dict.kpiTopTrend)}</span>
-          <span class="kpi-value">${topPollRow && topPollRow.count > 0 ? `${topPollRow.pct}%` : '—'}</span>
-        </div>
-      </div>
-
-      <!-- Circle Graph + Bar Graph for Opinion Trend -->
-      <div class="metric-section">
-        <h2 class="metric-heading">
-          <span>${escapeHtml(dict.pollTrendHeading)}</span>
-          <span class="metric-tag">${escapeHtml(dict.circleTag)}</span>
-        </h2>
-        ${
-          total
-            ? `${renderDonutInfographic(CONFIG.pollOptions, bucket?.options, total, showPick ? state.answers.optionId : null)}
-               ${renderBarGroup(CONFIG.pollOptions, bucket?.options, total, showPick ? state.answers.optionId : null, false)}`
-            : `<p class="card-subtitle" style="margin-bottom:0;">${escapeHtml(dict.noDataYet)}</p>`
-        }
-      </div>
-
-      <!-- Ranked Bar Graph for Key Issues -->
-      <div class="metric-section">
-        <h2 class="metric-heading">
-          <span>${escapeHtml(dict.topIssuesHeading)}</span>
-          <span class="metric-tag">${escapeHtml(dict.barTag)}</span>
-        </h2>
-        ${renderBarGroup(CONFIG.issues, bucket?.issues, total, showPick ? state.answers.issueId : null, true)}
-      </div>
-
-      ${
-        CONFIG.ageGroups.some((g) => (bucket?.ages?.[g.id] || 0) > 0)
-          ? `<div class="metric-section">
-              <h2 class="metric-heading">
-                <span>${escapeHtml(dict.ageHeading)}</span>
-                <span class="metric-tag">${escapeHtml(dict.columnTag)}</span>
-              </h2>
-              ${renderAgeColumnGraph(CONFIG.ageGroups, bucket?.ages, total, showPick ? state.answers.ageGroup : null)}
-            </div>`
-          : ''
-      }
+      ${state.resultsScope === 'seat' ? seatBodyHtml : ''}
+      ${isStateTabLocked ? lockedStateHtml : chartsBodyHtml}
 
       <div class="share-card">
         <h2 class="share-title">${escapeHtml(dict.shareTitle)}</h2>
@@ -1640,6 +1712,16 @@ function renderResults() {
     openSupportModal();
   });
 
+  document.getElementById('openLockSupportBtn')?.addEventListener('click', () => {
+    openSupportModal();
+  });
+
+  document.getElementById('bondinUnlockAllUp')?.addEventListener('bondin:success', () => {
+    setSupporterUnlocked(true);
+    showToast(dict.supporterUnlockedToast);
+    renderResults();
+  });
+
   if (state.pendingSupportPopup) {
     state.pendingSupportPopup = false;
     if (hasSupportConfig()) {
@@ -1667,6 +1749,10 @@ function renderResults() {
 
 function render() {
   updateChrome();
+  if (state.surveyConfig?.closed) {
+    renderClosedNotice();
+    return;
+  }
   if (state.step === 0) renderSplash();
   else if (state.step === 1) renderStep1District();
   else if (state.step === 2) renderStep3Issue();
@@ -1746,7 +1832,9 @@ async function init() {
           if (cfgData && typeof cfgData === 'object') {
             state.surveyConfig = {
               paused: Boolean(cfgData.paused),
+              closed: Boolean(cfgData.closed),
               announcement: String(cfgData.announcement || ''),
+              lockStateResults: cfgData.lockStateResults !== undefined ? Boolean(cfgData.lockStateResults) : true,
               supportEnabled: cfgData.supportEnabled !== undefined ? Boolean(cfgData.supportEnabled) : true,
               bondinUsername: cfgData.bondinUsername !== undefined ? String(cfgData.bondinUsername || '') : 'uppoll2027',
               supportTitle: String(cfgData.supportTitle || ''),
@@ -1761,6 +1849,11 @@ async function init() {
       } catch {
         // ignore non-fatal config read failures
       }
+    }
+
+    if (state.surveyConfig?.closed) {
+      render();
+      return;
     }
 
     let existingVote = getSavedUserVote();

@@ -37,7 +37,9 @@
     votes: {},
     surveyConfig: {
       paused: false,
+      closed: false,
       announcement: '',
+      lockStateResults: true,
       supportEnabled: true,
       bondinUsername: 'uppoll2027',
       supportTitle: '',
@@ -166,7 +168,9 @@
       const rawCfg = cfgRes.ok ? await cfgRes.json() : null;
       state.surveyConfig = {
         paused: Boolean(rawCfg?.paused),
+        closed: Boolean(rawCfg?.closed),
         announcement: String(rawCfg?.announcement || ''),
+        lockStateResults: rawCfg?.lockStateResults !== undefined ? Boolean(rawCfg.lockStateResults) : true,
         supportEnabled: rawCfg?.supportEnabled !== undefined ? Boolean(rawCfg.supportEnabled) : true,
         bondinUsername: rawCfg?.bondinUsername !== undefined ? String(rawCfg.bondinUsername || '') : 'uppoll2027',
         supportTitle: String(rawCfg?.supportTitle || ''),
@@ -315,7 +319,9 @@
     const tok = await ensureValidToken();
     const payload = {
       paused: Boolean(nextConfig.paused),
+      closed: Boolean(nextConfig.closed),
       announcement: String(nextConfig.announcement || '').trim(),
+      lockStateResults: Boolean(nextConfig.lockStateResults),
       supportEnabled: Boolean(nextConfig.supportEnabled),
       bondinUsername: String(nextConfig.bondinUsername || '').trim(),
       supportTitle: String(nextConfig.supportTitle || '').trim(),
@@ -817,7 +823,8 @@
   }
 
   function renderDashboard() {
-    statusPill.textContent = state.surveyConfig?.paused ? 'Survey Paused' : 'Live Admin';
+    const cfgSt = state.surveyConfig || {};
+    statusPill.textContent = cfgSt.closed ? '🔴 Survey CLOSED' : cfgSt.paused ? '🟡 Paused' : 'Live Admin';
     signOutBtn.hidden = false;
 
     const totalVotes = Number(state.summary?.totalVotes) || 0;
@@ -1216,18 +1223,44 @@
 
   function renderControlsTab() {
     const cfg = state.surveyConfig || {};
+    const curMode = cfg.closed ? 'closed' : cfg.paused ? 'paused' : 'live';
     return `
       <div class="metric-section">
-        <h2 class="metric-heading"><span>Live Survey Status, Notice & Support Popup</span></h2>
+        <h2 class="metric-heading"><span>Survey Status (ECI / Emergency Controls) & Support Popup</span></h2>
         <form id="controlsForm" class="admin-form">
-          <label class="admin-checkbox-row">
-            <input type="checkbox" id="pauseToggle" ${cfg.paused ? 'checked' : ''} />
-            <span><strong>Pause Survey Voting</strong> (Users can still view live results, new votes temporarily paused)</span>
-          </label>
-          <div class="admin-field">
-            <label for="noticeInput">Top Announcement Banner (optional)</label>
-            <input id="noticeInput" type="text" class="dropdown-search-input" placeholder="उदाहरण: यूपी 2027 जनमत सर्वे लाइव है — अपनी विधानसभा चुनें" value="${escapeHtml(cfg.announcement || '')}" />
+          <div class="mode-radio-grid" role="radiogroup" aria-label="Survey Status Mode">
+            <label class="mode-radio-card ${curMode === 'live' ? 'selected' : ''}">
+              <input type="radio" name="surveyMode" value="live" ${curMode === 'live' ? 'checked' : ''} />
+              <div>
+                <strong>🟢 लाइव चालू (Live)</strong>
+                <div class="admin-dist-sub">वोटिंग और लाइव ग्राफ़ सामान्य रूप से चलेंगे।</div>
+              </div>
+            </label>
+            <label class="mode-radio-card ${curMode === 'paused' ? 'selected' : ''}">
+              <input type="radio" name="surveyMode" value="paused" ${curMode === 'paused' ? 'checked' : ''} />
+              <div>
+                <strong>🟡 केवल वोटिंग रोकें (Paused)</strong>
+                <div class="admin-dist-sub">नए वोट बंद रहेंगे, पुराने नतीजे दिखेंगे।</div>
+              </div>
+            </label>
+            <label class="mode-radio-card mode-radio-card--danger ${curMode === 'closed' ? 'selected' : ''}">
+              <input type="radio" name="surveyMode" value="closed" ${curMode === 'closed' ? 'checked' : ''} />
+              <div>
+                <strong>🔴 आपातकालीन बंद (ECI Shutdown)</strong>
+                <div class="admin-dist-sub">पूरा सर्वे, नेता व सभी नतीजे तुरंत बंद — सिर्फ़ क्लोज़िंग नोटिस दिखेगा।</div>
+              </div>
+            </label>
           </div>
+
+          <div class="admin-field">
+            <label for="noticeInput">सूचना / क्लोज़िंग संदेश (Banner या Shutdown मैसेज)</label>
+            <input id="noticeInput" type="text" class="dropdown-search-input" placeholder="उदाहरण: यूपी 2027 सर्वे लाइव है (या बंद होने पर सूचना संदेश)" value="${escapeHtml(cfg.announcement || '')}" />
+          </div>
+
+          <label class="admin-checkbox-row">
+            <input type="checkbox" id="lockAllUpToggle" ${cfg.lockStateResults ? 'checked' : ''} />
+            <span><strong>🔒 पूरा UP (403 सीटें) और अन्य सीटें केवल Supporters के लिए रखें</strong> (वोटर अपनी विधानसभा सीट के नतीजे हमेशा मुफ़्त देख पाएगा; पूरा UP देखने के लिए Support करना होगा)</span>
+          </label>
 
           <hr style="border:none;border-top:1px solid var(--line);margin:8px 0;" />
 
@@ -1360,9 +1393,12 @@
 
     document.getElementById('controlsForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const modeVal = document.querySelector('input[name="surveyMode"]:checked')?.value || 'live';
       const nextCfg = {
-        paused: document.getElementById('pauseToggle').checked,
+        paused: modeVal === 'paused',
+        closed: modeVal === 'closed',
         announcement: document.getElementById('noticeInput').value,
+        lockStateResults: document.getElementById('lockAllUpToggle').checked,
         supportEnabled: document.getElementById('supportToggle').checked,
         bondinUsername: document.getElementById('bondinUserInput').value,
         supportUrl: document.getElementById('supportUrlInput').value,

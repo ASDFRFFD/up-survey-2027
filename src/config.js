@@ -224,6 +224,13 @@ const I18N = {
     supportUpiLabel: 'या UPI से सहयोग करें:',
     supportCopyUpi: 'UPI कॉपी करें',
     supportUpiCopied: 'UPI ID कॉपी हो गई!',
+    surveyClosedTitle: 'सर्वे फ़िलहाल बंद कर दिया गया है',
+    surveyClosedDefaultDesc: 'निर्वाचन आयोग / आचार संहिता व व्यवस्थागत कारणों से यह सर्वे अस्थायी रूप से बंद है। कोई भी जनमत परिणाम अभी प्रदर्शित नहीं किया जा रहा है।',
+    allUpLockedTitle: 'पूरा उत्तर प्रदेश (403 सीटें) लॉक है',
+    allUpLockedDesc: 'आप अपनी विधानसभा सीट के नतीजे मुफ़्त देख चुके हैं। सभी 75 ज़िलों व 403 सीटों का पूरा राज्य-स्तरीय ग्राफ़ देखने के लिए छोटा-सा सपोर्ट करें — पेमेंट होते ही तुरंत अनलॉक हो जाएगा।',
+    allUpLockedCta: 'चाय सपोर्ट करें और पूरा UP अनलॉक करें ☕',
+    seatSwitcherLockedHint: 'अन्य 402 सीटें व पूरा UP देखने के लिए ऊपर Supporter अनलॉक करें।',
+    supporterUnlockedToast: 'धन्यवाद! पूरा UP (403 सीटें) और सभी ज़िले अनलॉक हो गए 🎉',
   },
   en: {
     brandTitle: 'UP Opinion Survey',
@@ -339,6 +346,13 @@ const I18N = {
     supportUpiLabel: 'Or support via UPI:',
     supportCopyUpi: 'Copy UPI ID',
     supportUpiCopied: 'UPI ID copied!',
+    surveyClosedTitle: 'Survey Temporarily Closed',
+    surveyClosedDefaultDesc: 'In compliance with election guidelines or administrative orders, this opinion survey and all results are currently disabled.',
+    allUpLockedTitle: 'All-UP (403 Seats) Results Locked',
+    allUpLockedDesc: 'You have full free access to your own constituency trends. Support us with a quick chai to immediately unlock all 75 districts & statewide UP infographics.',
+    allUpLockedCta: 'Support & Unlock All-UP Results ☕',
+    seatSwitcherLockedHint: 'Unlock Supporter access above to browse all other 402 seats.',
+    supporterUnlockedToast: 'Thank you! Full UP (403 seats) infographics unlocked 🎉',
   },
 };
 
