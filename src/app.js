@@ -249,11 +249,15 @@ function renderDistrictOptionsHtml() {
     .map(
       (d) => `
       <button type="button" class="dropdown-option ${selectedDistrict?.id === d.id ? 'selected' : ''}" data-district-id="${escapeHtml(d.id)}">
-        <span>${escapeHtml(labelFor(d))}</span>
+        <span>${escapeHtml(labelFor(d))} <span class="seat-badge">${escapeHtml(dict.districtSeatCountShort(d.count || getSeatsForDistrict(d.id).length))}</span></span>
         <span class="dropdown-sub">${escapeHtml(altLabelFor(d))}</span>
       </button>`
     )
     .join('');
+}
+
+function getSeatsForDistrict(distId) {
+  return state.data.seats.filter((s) => s.d === distId);
 }
 
 function renderSeatOptionsHtml() {
@@ -1064,11 +1068,16 @@ function renderResults() {
               <label class="results-filter-label" for="resultsSeatSelect">${escapeHtml(dict.seatSwitcherLabel)}</label>
               <div class="native-select-wrap">
                 <select id="resultsSeatSelect" class="native-select">
-                  ${state.data.seats
-                    .map((s) => {
-                      const dist = state.data.districtMap.get(s.d);
-                      const label = `${formatSeatName(s)} — ${dist ? labelFor(dist) : ''}`;
-                      return `<option value="${s.ac}" ${s.ac === activeAc ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+                  ${state.data.districts
+                    .map((dist) => {
+                      const dSeats = getSeatsForDistrict(dist.id);
+                      const groupLabel = `${labelFor(dist)} — ${altLabelFor(dist)} (${dSeats.length})`;
+                      return `
+                        <optgroup label="${escapeHtml(groupLabel)}">
+                          ${dSeats
+                            .map((s) => `<option value="${s.ac}" ${s.ac === activeAc ? 'selected' : ''}>${escapeHtml(formatSeatName(s))}</option>`)
+                            .join('')}
+                        </optgroup>`;
                     })
                     .join('')}
                 </select>
