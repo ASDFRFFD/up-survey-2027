@@ -42,7 +42,8 @@ const state = {
   surveyConfig: {
     paused: false,
     announcement: '',
-    supportEnabled: false,
+    supportEnabled: true,
+    bondinUsername: 'vaibhavyadav',
     supportTitle: '',
     supportMessage: '',
     supportUrl: '',
@@ -1409,9 +1410,20 @@ function safeExternalUrl(raw) {
   }
 }
 
+function safeBondinUsername(raw) {
+  const name = String(raw || '').trim();
+  if (!name || name.length > 100 || name === '.' || name === '..' || /[\/\\\u0000-\u001F\u007F]/.test(name)) {
+    return '';
+  }
+  return name;
+}
+
 function hasSupportConfig() {
   const cfg = state.surveyConfig || {};
-  return Boolean(cfg.supportEnabled && (safeExternalUrl(cfg.supportUrl) || String(cfg.supportUpi || '').trim()));
+  return Boolean(
+    cfg.supportEnabled &&
+      (safeBondinUsername(cfg.bondinUsername) || safeExternalUrl(cfg.supportUrl) || String(cfg.supportUpi || '').trim())
+  );
 }
 
 function closeSupportModal() {
@@ -1422,13 +1434,21 @@ function openSupportModal() {
   closeSupportModal();
   const dict = t();
   const cfg = state.surveyConfig || {};
+  const bondinUser = safeBondinUsername(cfg.bondinUsername);
   const extUrl = safeExternalUrl(cfg.supportUrl);
   const upiId = String(cfg.supportUpi || '').trim();
-  if (!extUrl && !upiId) return;
+  if (!bondinUser && !extUrl && !upiId) return;
 
   const title = cfg.supportTitle || dict.supportDefaultTitle;
   const desc = cfg.supportMessage || dict.supportDefaultDesc;
-  const ctaLabel = cfg.supportBtnLabel || dict.supportDefaultCta;
+  const ctaLabel = cfg.supportBtnLabel || (state.lang === 'hi' ? '☕ सपोर्ट करें (Support me)' : '☕ Support me');
+
+  const bondinHtml = bondinUser
+    ? `
+      <bondin-support id="bondinSupportWidget" username="${escapeHtml(bondinUser)}" placement="up-survey-end" label="${escapeHtml(ctaLabel)}">
+        <a class="btn-primary support-cta-link" href="https://bondin.io/${encodeURIComponent(bondinUser)}/support" target="_blank" rel="noopener noreferrer">${escapeHtml(ctaLabel)}</a>
+      </bondin-support>`
+    : '';
 
   const upiHtml = upiId
     ? `
@@ -1463,9 +1483,10 @@ function openSupportModal() {
       <span class="support-vol-badge">${escapeHtml(dict.supportBadge)}</span>
       <h2 class="support-modal-title">${escapeHtml(title)}</h2>
       <p class="support-modal-desc">${escapeHtml(desc)}</p>
+      ${bondinHtml}
       ${
         extUrl
-          ? `<a id="supportExtLink" class="btn-primary support-cta-link" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ctaLabel)}</a>`
+          ? `<a id="supportExtLink" class="${bondinUser ? 'btn-support-inline' : 'btn-primary support-cta-link'}" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer" style="${bondinUser ? 'display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-bottom:8px;' : ''}">${escapeHtml(ctaLabel)}</a>`
           : ''
       }
       ${upiHtml}
@@ -1478,6 +1499,10 @@ function openSupportModal() {
   document.getElementById('supportDismissBtn')?.addEventListener('click', closeSupportModal);
   modal.addEventListener('click', (e) => {
     if (e.target === modal) closeSupportModal();
+  });
+  document.getElementById('bondinSupportWidget')?.addEventListener('bondin:success', () => {
+    showToast(state.lang === 'hi' ? 'धन्यवाद! आपका सहयोग प्राप्त हुआ 🙏' : 'Thank you for your support! 🙏');
+    closeSupportModal();
   });
   document.getElementById('supportCopyUpiBtn')?.addEventListener('click', async () => {
     try {
@@ -1730,7 +1755,9 @@ async function init() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    closeSupportModal();
+    if (!document.querySelector('dialog[data-bondin-overlay]')) {
+      closeSupportModal();
+    }
     if (state.step === 1 && state.districtOpen) {
       state.districtOpen = false;
       document.getElementById('districtTrigger')?.setAttribute('aria-expanded', 'false');
@@ -1771,7 +1798,8 @@ async function init() {
             state.surveyConfig = {
               paused: Boolean(cfgData.paused),
               announcement: String(cfgData.announcement || ''),
-              supportEnabled: Boolean(cfgData.supportEnabled),
+              supportEnabled: cfgData.supportEnabled !== undefined ? Boolean(cfgData.supportEnabled) : true,
+              bondinUsername: cfgData.bondinUsername !== undefined ? String(cfgData.bondinUsername || '') : 'vaibhavyadav',
               supportTitle: String(cfgData.supportTitle || ''),
               supportMessage: String(cfgData.supportMessage || ''),
               supportUrl: String(cfgData.supportUrl || ''),

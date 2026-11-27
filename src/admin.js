@@ -38,12 +38,14 @@
     surveyConfig: {
       paused: false,
       announcement: '',
-      supportEnabled: false,
+      supportEnabled: true,
+      bondinUsername: 'vaibhavyadav',
       supportTitle: '',
       supportMessage: '',
       supportUrl: '',
       supportUpi: '',
       supportBtnLabel: '',
+      resetAt: 0,
     },
   };
 
@@ -165,7 +167,8 @@
       state.surveyConfig = {
         paused: Boolean(rawCfg?.paused),
         announcement: String(rawCfg?.announcement || ''),
-        supportEnabled: Boolean(rawCfg?.supportEnabled),
+        supportEnabled: rawCfg?.supportEnabled !== undefined ? Boolean(rawCfg.supportEnabled) : true,
+        bondinUsername: rawCfg?.bondinUsername !== undefined ? String(rawCfg.bondinUsername || '') : 'vaibhavyadav',
         supportTitle: String(rawCfg?.supportTitle || ''),
         supportMessage: String(rawCfg?.supportMessage || ''),
         supportUrl: String(rawCfg?.supportUrl || ''),
@@ -314,6 +317,7 @@
       paused: Boolean(nextConfig.paused),
       announcement: String(nextConfig.announcement || '').trim(),
       supportEnabled: Boolean(nextConfig.supportEnabled),
+      bondinUsername: String(nextConfig.bondinUsername || '').trim(),
       supportTitle: String(nextConfig.supportTitle || '').trim(),
       supportMessage: String(nextConfig.supportMessage || '').trim(),
       supportUrl: String(nextConfig.supportUrl || '').trim(),
@@ -1136,7 +1140,8 @@
     const desc =
       String(cfg.supportMessage || '').trim() ||
       'यह सर्वे बिल्कुल मुफ़्त और विज्ञापन-मुक्त है। यदि आपको हमारा प्रयास पसंद आया, तो स्वेच्छा से छोटा-सा सहयोग दे सकते हैं।';
-    const btnLabel = String(cfg.supportBtnLabel || '').trim() || '☕ सपोर्ट करें (Buy Me a Coffee)';
+    const btnLabel = String(cfg.supportBtnLabel || '').trim() || '☕ सपोर्ट करें (Support me)';
+    const bondinUser = String(cfg.bondinUsername || '').trim();
     const rawUrl = String(cfg.supportUrl || '').trim();
     let extUrl = '';
     try {
@@ -1146,6 +1151,13 @@
       extUrl = '';
     }
     const upiId = String(cfg.supportUpi || '').trim();
+
+    const bondinHtml = bondinUser
+      ? `
+        <bondin-support username="${escapeHtml(bondinUser)}" placement="up-survey-preview" label="${escapeHtml(btnLabel)}">
+          <a class="btn-primary support-cta-link" href="https://bondin.io/${encodeURIComponent(bondinUser)}/support" target="_blank" rel="noopener noreferrer">${escapeHtml(btnLabel)}</a>
+        </bondin-support>`
+      : '';
 
     const modal = document.createElement('div');
     modal.id = 'supportModalRoot';
@@ -1159,10 +1171,11 @@
         <span class="support-vol-badge">Preview • स्वेच्छिक सहयोग</span>
         <h2 class="support-modal-title">${escapeHtml(title)}</h2>
         <p class="support-modal-desc">${escapeHtml(desc)}</p>
+        ${bondinHtml}
         ${
           extUrl
-            ? `<a class="btn-primary support-cta-link" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(btnLabel)}</a>`
-            : `<button type="button" class="btn-primary support-cta-link" onclick="return false;">${escapeHtml(btnLabel)}</button>`
+            ? `<a class="${bondinUser ? 'btn-support-inline' : 'btn-primary support-cta-link'}" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer" style="${bondinUser ? 'display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-bottom:8px;' : ''}">${escapeHtml(btnLabel)}</a>`
+            : ''
         }
         ${
           upiId
@@ -1170,7 +1183,9 @@
                 <span class="support-upi-label">या UPI से सहयोग करें:</span>
                 <div class="support-upi-row"><code>${escapeHtml(upiId)}</code></div>
                </div>`
-            : `<p class="admin-dist-sub" style="margin:6px 0 0;">(लिंक या UPI ID डालने के बाद लाइव साइट पर दिखेगा)</p>`
+            : !bondinUser && !extUrl
+              ? `<p class="admin-dist-sub" style="margin:6px 0 0;">(Bondin Username, लिंक या UPI ID डालने के बाद लाइव साइट पर दिखेगा)</p>`
+              : ''
         }
         <button type="button" id="previewDismissBtn" class="support-dismiss-btn">अभी नहीं, सिर्फ़ नतीजे देखें</button>
       </div>
@@ -1201,23 +1216,28 @@
 
           <hr style="border:none;border-top:1px solid var(--line);margin:8px 0;" />
 
-          <h3 class="metric-heading" style="margin:2px 0 4px;"><span>☕ End-of-Survey Voluntary Support Popup</span><span class="metric-tag">Buy Me a Coffee / UPI</span></h3>
+          <h3 class="metric-heading" style="margin:2px 0 4px;"><span>☕ End-of-Survey Voluntary Support Popup</span><span class="metric-tag">Bondin / UPI</span></h3>
           <p class="card-subtitle" style="margin:0 0 6px;">वोट सबमिट होने के तुरंत बाद स्वेच्छिक सपोर्ट पॉपअप दिखाएँ (जिसकी इच्छा होगी वह देगा, बाकी "नहीं" दबाकर नतीजे देख लेंगे)।</p>
 
           <label class="admin-checkbox-row">
             <input type="checkbox" id="supportToggle" ${cfg.supportEnabled ? 'checked' : ''} />
-            <span><strong>Enable Support Popup after Vote</strong> (नीचे Payment Link या UPI ID होने पर ही लाइव दिखेगा)</span>
+            <span><strong>Enable Support Popup after Vote</strong></span>
           </label>
 
           <div class="admin-two-col">
             <div class="admin-field">
-              <label for="supportUrlInput">Buy Me a Coffee / Razorpay Link (https://...)</label>
-              <input id="supportUrlInput" type="url" class="dropdown-search-input" placeholder="https://buymeacoffee.com/yourname या https://razorpay.me/@yourname" value="${escapeHtml(cfg.supportUrl || '')}" />
+              <label for="bondinUserInput">Bondin Username (अंतर्निर्मित सपोर्ट विजेट)</label>
+              <input id="bondinUserInput" type="text" class="dropdown-search-input" placeholder="vaibhavyadav" value="${escapeHtml(cfg.bondinUsername || '')}" />
             </div>
             <div class="admin-field">
               <label for="supportUpiInput">या UPI ID (वैकल्पिक — Copy & ₹11/21/51 UPI)</label>
               <input id="supportUpiInput" type="text" class="dropdown-search-input" placeholder="yourname@okaxis या yourname@ybl" value="${escapeHtml(cfg.supportUpi || '')}" />
             </div>
+          </div>
+
+          <div class="admin-field">
+            <label for="supportUrlInput">अतिरिक्त Payment Link (वैकल्पिक — Buy Me a Coffee / Razorpay)</label>
+            <input id="supportUrlInput" type="url" class="dropdown-search-input" placeholder="https://razorpay.me/@yourname" value="${escapeHtml(cfg.supportUrl || '')}" />
           </div>
 
           <div class="admin-two-col">
@@ -1329,6 +1349,7 @@
         paused: document.getElementById('pauseToggle').checked,
         announcement: document.getElementById('noticeInput').value,
         supportEnabled: document.getElementById('supportToggle').checked,
+        bondinUsername: document.getElementById('bondinUserInput').value,
         supportUrl: document.getElementById('supportUrlInput').value,
         supportUpi: document.getElementById('supportUpiInput').value,
         supportTitle: document.getElementById('supportTitleInput').value,
@@ -1344,6 +1365,7 @@
 
     document.getElementById('previewSupportBtn')?.addEventListener('click', () => {
       openAdminPopupPreview({
+        bondinUsername: document.getElementById('bondinUserInput')?.value,
         supportTitle: document.getElementById('supportTitleInput')?.value,
         supportMessage: document.getElementById('supportMsgInput')?.value,
         supportUrl: document.getElementById('supportUrlInput')?.value,

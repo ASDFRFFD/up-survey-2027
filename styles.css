@@ -2895,3 +2895,29 @@ html[lang="en"] .card-title {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Native theme matching for <bondin-support> web component */
+bondin-support {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+bondin-support::part(button) {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(254, 240, 138, 0.45);
+  background-image: var(--pl-orange-bg);
+  background-color: var(--orange-deep);
+  box-shadow: var(--pl-orange-shadow);
+  color: #ffffff;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+bondin-support::part(button):hover {
+  filter: brightness(1.04);
+}
