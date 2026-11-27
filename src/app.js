@@ -42,8 +42,8 @@ const state = {
   surveyConfig: {
     paused: false,
     announcement: '',
-    supportEnabled: false,
-    bondinUsername: '',
+    supportEnabled: true,
+    bondinUsername: 'uppoll2027',
     supportTitle: '',
     supportMessage: '',
     supportUrl: '',
@@ -1801,8 +1801,8 @@ async function init() {
             state.surveyConfig = {
               paused: Boolean(cfgData.paused),
               announcement: String(cfgData.announcement || ''),
-              supportEnabled: Boolean(cfgData.supportEnabled),
-              bondinUsername: String(cfgData.bondinUsername || ''),
+              supportEnabled: cfgData.supportEnabled !== undefined ? Boolean(cfgData.supportEnabled) : true,
+              bondinUsername: cfgData.bondinUsername !== undefined ? String(cfgData.bondinUsername || '') : 'uppoll2027',
               supportTitle: String(cfgData.supportTitle || ''),
               supportMessage: String(cfgData.supportMessage || ''),
               supportUrl: String(cfgData.supportUrl || ''),

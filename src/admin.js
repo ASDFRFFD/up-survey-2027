@@ -38,8 +38,8 @@
     surveyConfig: {
       paused: false,
       announcement: '',
-      supportEnabled: false,
-      bondinUsername: '',
+      supportEnabled: true,
+      bondinUsername: 'uppoll2027',
       supportTitle: '',
       supportMessage: '',
       supportUrl: '',
@@ -167,8 +167,8 @@
       state.surveyConfig = {
         paused: Boolean(rawCfg?.paused),
         announcement: String(rawCfg?.announcement || ''),
-        supportEnabled: Boolean(rawCfg?.supportEnabled),
-        bondinUsername: String(rawCfg?.bondinUsername || ''),
+        supportEnabled: rawCfg?.supportEnabled !== undefined ? Boolean(rawCfg.supportEnabled) : true,
+        bondinUsername: rawCfg?.bondinUsername !== undefined ? String(rawCfg.bondinUsername || '') : 'uppoll2027',
         supportTitle: String(rawCfg?.supportTitle || ''),
         supportMessage: String(rawCfg?.supportMessage || ''),
         supportUrl: String(rawCfg?.supportUrl || ''),
@@ -1230,7 +1230,7 @@
           <div class="admin-two-col">
             <div class="admin-field">
               <label for="bondinUserInput">Bondin Username (अंतर्निर्मित सपोर्ट विजेट)</label>
-              <input id="bondinUserInput" type="text" class="dropdown-search-input" placeholder="apna-anonymous-username" value="${escapeHtml(cfg.bondinUsername || '')}" />
+              <input id="bondinUserInput" type="text" class="dropdown-search-input" placeholder="uppoll2027" value="${escapeHtml(cfg.bondinUsername || '')}" />
             </div>
             <div class="admin-field">
               <label for="supportUpiInput">या UPI ID (वैकल्पिक — Copy & ₹11/21/51 UPI)</label>
