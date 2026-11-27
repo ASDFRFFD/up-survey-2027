@@ -1136,11 +1136,11 @@
 
   function openAdminPopupPreview(cfg) {
     document.getElementById('supportModalRoot')?.remove();
-    const title = String(cfg.supportTitle || '').trim() || 'सर्वे बढ़िया लगा? एक चाय पिला सकते हैं ☕';
+    const title = String(cfg.supportTitle || '').trim() || 'एक कप चाय के बराबर साथ दें ☕';
     const desc =
       String(cfg.supportMessage || '').trim() ||
-      'इसे बिना विज्ञापन और बिना लॉगिन के बनाया गया है ताकि सही राय सामने आए। मन हो तो छोटा-सा सहयोग करें, वरना सीधा नतीजे देखें।';
-    const btnLabel = String(cfg.supportBtnLabel || '').trim() || 'चाय / सपोर्ट दें ☕';
+      'बिना पार्टी फंडिंग व बिना विज्ञापन के 403 सीटों का लाइव डेटा आप तक पहुँचाने में मदद करें।';
+    const btnLabel = String(cfg.supportBtnLabel || '').trim() || 'चाय पिलाएँ / Support ☕';
     const bondinUser = String(cfg.bondinUsername || '').trim();
     const rawUrl = String(cfg.supportUrl || '').trim();
     let extUrl = '';
@@ -1164,33 +1164,45 @@
     modal.className = 'support-modal-backdrop';
     modal.innerHTML = `
       <div class="support-modal-card">
-        <div class="support-sheet-handle" aria-hidden="true"></div>
-        <div class="support-author-row">
-          <div class="support-author-left">
-            <span class="support-author-avatar" aria-hidden="true">UP</span>
-            <span class="support-author-meta">Preview • UP जनमत सर्वे • स्वतंत्र पहल</span>
+        <div class="support-reward-banner">
+          <div class="support-reward-left">
+            <span class="support-check-dot" aria-hidden="true">✓</span>
+            <span>Preview • वोट जुड़ गया • नतीजे तैयार</span>
           </div>
           <button type="button" id="previewCloseX" class="support-close-x" aria-label="Close">✕</button>
         </div>
-        <h2 class="support-modal-title">${escapeHtml(title)}</h2>
-        <p class="support-modal-desc">${escapeHtml(desc)}</p>
-        ${bondinHtml}
-        ${
-          extUrl
-            ? `<a class="${bondinUser ? 'btn-support-inline' : 'btn-primary support-cta-link'}" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer" style="${bondinUser ? 'display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-bottom:8px;' : ''}">${escapeHtml(btnLabel)}</a>`
-            : ''
-        }
-        ${
-          upiId
-            ? `<div class="support-upi-box">
-                <span class="support-upi-label">या UPI से सहयोग करें:</span>
-                <div class="support-upi-row"><code>${escapeHtml(upiId)}</code></div>
-               </div>`
-            : !bondinUser && !extUrl
-              ? `<p class="admin-dist-sub" style="margin:6px 0 0;">(Bondin Username, लिंक या UPI ID डालने के बाद लाइव साइट पर दिखेगा)</p>`
+        <div class="support-modal-body">
+          <div class="support-chai-row">
+            <div class="support-chai-icon" aria-hidden="true">
+              <svg width="46" height="46" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="23" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1.5"/><path d="M18 13C18 11.4 19.4 10.6 19.4 9" stroke="#EA580C" stroke-width="2" stroke-linecap="round"/><path d="M24 12C24 10.2 25.4 9.5 25.4 7.8" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/><path d="M30 13C30 11.4 31.2 10.6 31.2 9" stroke="#EA580C" stroke-width="2" stroke-linecap="round"/><path d="M14 19H32V28C32 32.4183 28.4183 36 24 36H22C17.5817 36 14 32.4183 14 28V19Z" fill="#FB923C" stroke="#C2410C" stroke-width="1.8" stroke-linejoin="round"/><path d="M32 21H34.5C36.433 21 38 22.567 38 24.5C38 26.433 36.433 28 34.5 28H32" stroke="#C2410C" stroke-width="1.8" stroke-linecap="round"/><path d="M16 22H30" stroke="#FED7AA" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <h2 class="support-modal-title">${escapeHtml(title)}</h2>
+              <p class="support-modal-desc">${escapeHtml(desc)}</p>
+            </div>
+          </div>
+          <div class="support-mini-tags">
+            <span>⚡ 100% विज्ञापन-मुक्त</span>
+            <span>❤️ पूरी तरह आपकी मर्ज़ी</span>
+          </div>
+          ${bondinHtml}
+          ${
+            extUrl
+              ? `<a class="${bondinUser ? 'btn-support-inline' : 'btn-primary support-cta-link'}" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer" style="${bondinUser ? 'display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-bottom:8px;' : ''}">${escapeHtml(btnLabel)}</a>`
               : ''
-        }
-        <button type="button" id="previewDismissBtn" class="support-dismiss-btn">अभी रहने दें, नतीजे देखें</button>
+          }
+          ${
+            upiId
+              ? `<div class="support-upi-box">
+                  <span class="support-upi-label">या UPI से सहयोग करें:</span>
+                  <div class="support-upi-row"><code>${escapeHtml(upiId)}</code></div>
+                 </div>`
+              : !bondinUser && !extUrl
+                ? `<p class="admin-dist-sub" style="margin:6px 0 0;">(Bondin Username, लिंक या UPI ID डालने के बाद लाइव साइट पर दिखेगा)</p>`
+                : ''
+          }
+          <button type="button" id="previewDismissBtn" class="support-dismiss-btn">सीधे नतीजे देखें →</button>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);
@@ -1246,17 +1258,17 @@
           <div class="admin-two-col">
             <div class="admin-field">
               <label for="supportTitleInput">Popup Title (खाली छोड़ने पर डिफ़ॉल्ट हिंदी शीर्षक)</label>
-              <input id="supportTitleInput" type="text" class="dropdown-search-input" placeholder="सर्वे बढ़िया लगा? एक चाय पिला सकते हैं ☕" value="${escapeHtml(cfg.supportTitle || '')}" />
+              <input id="supportTitleInput" type="text" class="dropdown-search-input" placeholder="एक कप चाय के बराबर साथ दें ☕" value="${escapeHtml(cfg.supportTitle || '')}" />
             </div>
             <div class="admin-field">
               <label for="supportBtnInput">Button Text</label>
-              <input id="supportBtnInput" type="text" class="dropdown-search-input" placeholder="चाय / सपोर्ट दें ☕" value="${escapeHtml(cfg.supportBtnLabel || '')}" />
+              <input id="supportBtnInput" type="text" class="dropdown-search-input" placeholder="चाय पिलाएँ / Support ☕" value="${escapeHtml(cfg.supportBtnLabel || '')}" />
             </div>
           </div>
 
           <div class="admin-field">
             <label for="supportMsgInput">Popup Message</label>
-            <input id="supportMsgInput" type="text" class="dropdown-search-input" placeholder="इसे मैंने बिना विज्ञापन और बिना लॉगिन के बनाया है ताकि सही राय सामने आए।" value="${escapeHtml(cfg.supportMessage || '')}" />
+            <input id="supportMsgInput" type="text" class="dropdown-search-input" placeholder="बिना पार्टी फंडिंग व बिना विज्ञापन के 403 सीटों का लाइव डेटा आप तक पहुँचाने में मदद करें।" value="${escapeHtml(cfg.supportMessage || '')}" />
           </div>
 
           <div class="admin-export-row">

@@ -192,13 +192,13 @@ function updateChrome() {
   if (el.headerAdminText) el.headerAdminText.textContent = dict.adminBtnShort;
   if (el.footerAdminText) el.footerAdminText.textContent = dict.footerAdminCta;
 
-  const pct = state.step === 0 ? 0 : state.step <= 5 ? state.step * 20 : 100;
+  const pct = state.step === 0 ? 0 : state.step <= 3 ? Math.round((state.step / 3) * 90) : 100;
   el.progressFill.style.width = `${pct}%`;
   el.progressTrack.setAttribute('aria-valuenow', String(pct));
   el.stepIndicator.textContent =
     state.step === 0
       ? dict.splashStepLabel
-      : state.step <= 5
+      : state.step <= 3
         ? dict.stepLabel(state.step)
         : dict.resultsStepLabel;
 
@@ -482,7 +482,7 @@ function renderSplash() {
       state.viewedSeatAc = targetAc;
       await loadSeatBucket(targetAc);
       state.resultsScope = 'seat';
-      state.step = 6;
+      state.step = 4;
       render();
     } finally {
       btn.disabled = false;
@@ -495,7 +495,7 @@ function renderSplash() {
     state.viewedSeatAc = defaultAc;
     await loadSeatBucket(defaultAc);
     state.resultsScope = 'state';
-    state.step = 6;
+    state.step = 4;
     render();
   });
 
@@ -503,16 +503,18 @@ function renderSplash() {
     if (!invitedSeat) return;
     state.answers.districtId = invitedSeat.d;
     state.answers.acNo = invitedSeat.ac;
-    state.step = 3;
+    state.step = 2;
     render();
   });
 }
 
-/* Question 1 of 5: District Dropdown Only */
+/* Step 1 of 3: District + Direct-Tap Seat Grid in One Screen */
 function renderStep1District() {
   const dict = t();
   const { districts, districtMap, seatMap } = state.data;
   const selectedDistrict = state.answers.districtId ? districtMap.get(state.answers.districtId) : null;
+  const selectedSeat = state.answers.acNo ? seatMap.get(state.answers.acNo) : null;
+  const districtSeats = selectedDistrict ? getDistrictSeats() : [];
   const invitedSeat = state.invitedSeatAc && !state.answers.acNo ? seatMap.get(state.invitedSeatAc) : null;
 
   const inviteHtml = invitedSeat
@@ -520,6 +522,34 @@ function renderStep1District() {
       <div class="invite-banner">
         <span>${escapeHtml(dict.invitedSeatPrefix)} <strong>${escapeHtml(formatSeatName(invitedSeat))}</strong></span>
         <button type="button" id="useInvitedSeatBtn" class="invite-use-btn">${escapeHtml(dict.invitedSeatAction)}</button>
+      </div>`
+    : '';
+
+  const inlineSeatsHtml = selectedDistrict
+    ? `
+      <div id="inlineSeatSection" class="inline-seat-section">
+        <div class="dropdown-label" style="margin-top:16px;">
+          <span>${escapeHtml(labelFor(selectedDistrict))} — ${escapeHtml(dict.seatFieldLabel)}</span>
+          <span class="dropdown-count-badge">${escapeHtml(dict.seatBadge(districtSeats.length))}</span>
+        </div>
+        ${
+          districtSeats.length > 6
+            ? `<div class="dropdown-search-wrap seat-filter-inline">
+                <input
+                  id="seatSearch"
+                  class="dropdown-search-input"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="${escapeHtml(dict.quickSeatsFilterPlaceholder)}"
+                  value="${escapeHtml(state.seatQuery)}"
+                />
+                <button type="button" id="clearSeatBtn" class="clear-input-btn" aria-label="Clear search" ${state.seatQuery ? '' : 'hidden'}>✕</button>
+              </div>`
+            : ''
+        }
+        <div id="seatGridList" class="seat-grid-2" role="listbox">
+          ${renderSeatTilesHtml()}
+        </div>
       </div>`
     : '';
 
@@ -587,11 +617,15 @@ function renderStep1District() {
         </div>
       </div>
 
+      ${inlineSeatsHtml}
+
       <div class="card-actions">
         <button type="button" id="step1BackBtn" class="btn-back">${escapeHtml(dict.back)}</button>
-        <button type="button" id="step1NextBtn" class="btn-primary" ${selectedDistrict ? '' : 'disabled'}>
-          ${escapeHtml(dict.next)}
-        </button>
+        ${
+          selectedSeat
+            ? `<button type="button" id="step1NextBtn" class="btn-primary">${escapeHtml(dict.next)}</button>`
+            : ''
+        }
       </div>
     </section>
   `;
@@ -609,9 +643,9 @@ function bindDistrictOptionClicks() {
         state.seatQuery = '';
       }
       state.districtOpen = false;
-      state.seatOpen = false;
-      state.step = 2;
+      state.step = 1;
       render();
+      document.getElementById('inlineSeatSection')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   });
 }
@@ -629,7 +663,6 @@ function bindStep1Events() {
     state.answers.districtId = seat.d;
     state.answers.acNo = seat.ac;
     state.districtOpen = false;
-    state.seatOpen = false;
     state.step = 2;
     render();
   });
@@ -659,6 +692,27 @@ function bindStep1Events() {
 
   bindDistrictOptionClicks();
 
+  const seatSearch = document.getElementById('seatSearch');
+  const clearSeatBtn = document.getElementById('clearSeatBtn');
+  const seatGrid = document.getElementById('seatGridList');
+  if (seatSearch && seatGrid) {
+    seatSearch.addEventListener('input', (e) => {
+      state.seatQuery = e.target.value;
+      if (clearSeatBtn) clearSeatBtn.hidden = !state.seatQuery;
+      seatGrid.innerHTML = renderSeatTilesHtml();
+      bindSeatOptionClicks();
+    });
+    clearSeatBtn?.addEventListener('click', () => {
+      state.seatQuery = '';
+      seatSearch.value = '';
+      clearSeatBtn.hidden = true;
+      seatGrid.innerHTML = renderSeatTilesHtml();
+      bindSeatOptionClicks();
+      seatSearch.focus();
+    });
+  }
+  bindSeatOptionClicks();
+
   document.getElementById('step1BackBtn')?.addEventListener('click', () => {
     state.districtOpen = false;
     state.step = 0;
@@ -666,15 +720,14 @@ function bindStep1Events() {
   });
 
   document.getElementById('step1NextBtn')?.addEventListener('click', () => {
-    if (state.answers.districtId) {
-      state.seatOpen = false;
+    if (state.answers.acNo) {
       state.step = 2;
       render();
     }
   });
 }
 
-/* Question 2 of 5: Direct-Tap Compact Seat Grid + Live Filter */
+/* Direct-Tap Seat Grid Helper */
 function renderSeatTilesHtml() {
   const dict = t();
   const selectedAc = state.answers.acNo;
@@ -697,92 +750,14 @@ function renderSeatTilesHtml() {
     .join('');
 }
 
-function renderStep2Seat() {
-  const dict = t();
-  const { districtMap, seatMap } = state.data;
-  const selectedDistrict = districtMap.get(state.answers.districtId);
-  const selectedSeat = state.answers.acNo ? seatMap.get(state.answers.acNo) : null;
-  const districtSeats = getDistrictSeats();
-
-  el.stage.innerHTML = `
-    <section class="card">
-      <p class="card-eyebrow">${escapeHtml(dict.step2Eyebrow)}</p>
-      <h1 class="card-title">${escapeHtml(dict.step2Title(selectedDistrict ? labelFor(selectedDistrict) : ''))}</h1>
-      <p class="card-subtitle">${escapeHtml(dict.quickSeatsTapHint(districtSeats.length))}</p>
-
-      <div class="dropdown-search-wrap seat-filter-inline">
-        <input
-          id="seatSearch"
-          class="dropdown-search-input"
-          type="text"
-          autocomplete="off"
-          placeholder="${escapeHtml(dict.quickSeatsFilterPlaceholder)}"
-          value="${escapeHtml(state.seatQuery)}"
-        />
-        <button type="button" id="clearSeatBtn" class="clear-input-btn" aria-label="Clear search" ${state.seatQuery ? '' : 'hidden'}>✕</button>
-      </div>
-
-      <div id="seatGridList" class="seat-grid-2" role="listbox">
-        ${renderSeatTilesHtml()}
-      </div>
-
-      <div class="card-actions">
-        <button type="button" id="backBtn" class="btn-back">${escapeHtml(dict.back)}</button>
-        <button type="button" id="step2NextBtn" class="btn-primary" ${selectedSeat ? '' : 'disabled'}>
-          ${escapeHtml(dict.next)}
-        </button>
-      </div>
-    </section>
-  `;
-
-  bindStep2Events();
-}
-
 function bindSeatOptionClicks() {
   document.querySelectorAll('[data-ac]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.answers.acNo = Number(btn.dataset.ac);
       state.seatOpen = false;
-      state.step = 3;
+      state.step = 2;
       render();
     });
-  });
-}
-
-function bindStep2Events() {
-  const searchInput = document.getElementById('seatSearch');
-  const clearBtn = document.getElementById('clearSeatBtn');
-  const gridList = document.getElementById('seatGridList');
-
-  searchInput.addEventListener('input', (e) => {
-    state.seatQuery = e.target.value;
-    clearBtn.hidden = !state.seatQuery;
-    gridList.innerHTML = renderSeatTilesHtml();
-    bindSeatOptionClicks();
-  });
-
-  clearBtn.addEventListener('click', () => {
-    state.seatQuery = '';
-    searchInput.value = '';
-    clearBtn.hidden = true;
-    gridList.innerHTML = renderSeatTilesHtml();
-    bindSeatOptionClicks();
-    searchInput.focus();
-  });
-
-  bindSeatOptionClicks();
-
-  document.getElementById('backBtn').addEventListener('click', () => {
-    state.districtOpen = false;
-    state.step = 1;
-    render();
-  });
-
-  document.getElementById('step2NextBtn')?.addEventListener('click', () => {
-    if (state.answers.acNo) {
-      state.step = 3;
-      render();
-    }
   });
 }
 
@@ -821,8 +796,7 @@ function renderStep3Issue() {
   `;
 
   document.getElementById('backBtn').addEventListener('click', () => {
-    state.seatOpen = false;
-    state.step = 2;
+    state.step = 1;
     render();
   });
 
@@ -831,7 +805,7 @@ function renderStep3Issue() {
       state.answers.issueId = btn.dataset.issueId;
       btn.classList.add('selected');
       setTimeout(() => {
-        state.step = 4;
+        state.step = 3;
         render();
       }, 150);
     });
@@ -937,73 +911,18 @@ function renderStep4Poll() {
   `;
 
   document.getElementById('backBtn').addEventListener('click', () => {
-    state.step = 3;
+    state.step = 2;
     render();
   });
 
   document.querySelectorAll('[data-option-id]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      if (state.submitting) return;
       state.answers.optionId = btn.dataset.optionId;
-      btn.classList.add('selected');
-      setTimeout(() => {
-        state.step = 5;
-        render();
-      }, 150);
-    });
-  });
-}
-
-/* Question 5 of 5: Age Group (2x2 Graphic Grid, Optional) */
-function renderStep5Age() {
-  const dict = t();
-  el.stage.innerHTML = `
-    <section class="card">
-      <p class="card-eyebrow">${escapeHtml(dict.step5Eyebrow)}</p>
-      <h1 class="card-title">${escapeHtml(dict.step5Title)}</h1>
-      <p class="card-subtitle">${escapeHtml(dict.step5Subtitle)}</p>
-
-      <div class="options-grid-2">
-        ${CONFIG.ageGroups
-          .map((item) => {
-            const selected = state.answers.ageGroup === item.id;
-            return `
-              <button type="button" class="option-tile ${selected ? 'selected' : ''}" data-age-id="${escapeHtml(item.id)}" ${state.submitting ? 'disabled' : ''}>
-                <span class="issue-icon-badge" aria-hidden="true">${ageIconSvg(item.id)}</span>
-                <span class="option-tile-text">
-                  <span class="option-tile-title">${escapeHtml(labelFor(item))}</span>
-                </span>
-                <span class="option-check option-check--sm" aria-hidden="true">✓</span>
-              </button>`;
-          })
-          .join('')}
-      </div>
-
-      <button type="button" id="skipAgeBtn" class="btn-skip" ${state.submitting ? 'disabled' : ''}>
-        ${escapeHtml(dict.skipAge)}
-      </button>
-
-      <div class="card-actions">
-        <button type="button" id="backBtn" class="btn-back" ${state.submitting ? 'disabled' : ''}>${escapeHtml(dict.back)}</button>
-      </div>
-    </section>
-  `;
-
-  document.getElementById('backBtn').addEventListener('click', () => {
-    state.step = 4;
-    render();
-  });
-
-  document.querySelectorAll('[data-age-id]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.answers.ageGroup = btn.dataset.ageId;
+      state.answers.ageGroup = null;
       btn.classList.add('selected');
       setTimeout(() => submitVote(), 150);
     });
-  });
-
-  document.getElementById('skipAgeBtn').addEventListener('click', () => {
-    state.answers.ageGroup = null;
-    submitVote();
   });
 }
 
@@ -1192,7 +1111,7 @@ async function submitVote() {
           state.answers = { ...syncedVote };
           state.aggregates = await fetchFirebaseAggregates(syncedVote.acNo);
           state.viewedSeatAc = syncedVote.acNo;
-          state.step = 6;
+          state.step = 4;
           state.resultsScope = 'seat';
           showToast(t().duplicateVoteToast);
           return;
@@ -1228,7 +1147,7 @@ async function submitVote() {
 
     saveUserVote(payload);
     state.viewedSeatAc = payload.acNo;
-    state.step = 6;
+    state.step = 4;
     state.resultsScope = 'seat';
     state.pendingSupportPopup = true;
   } catch (err) {
@@ -1430,6 +1349,19 @@ function closeSupportModal() {
   document.getElementById('supportModalRoot')?.remove();
 }
 
+function supportChaiArtSvg() {
+  return `
+    <svg width="46" height="46" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <circle cx="24" cy="24" r="23" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1.5"/>
+      <path d="M18 13C18 11.4 19.4 10.6 19.4 9" stroke="#EA580C" stroke-width="2" stroke-linecap="round"/>
+      <path d="M24 12C24 10.2 25.4 9.5 25.4 7.8" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+      <path d="M30 13C30 11.4 31.2 10.6 31.2 9" stroke="#EA580C" stroke-width="2" stroke-linecap="round"/>
+      <path d="M14 19H32V28C32 32.4183 28.4183 36 24 36H22C17.5817 36 14 32.4183 14 28V19Z" fill="#FB923C" stroke="#C2410C" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M32 21H34.5C36.433 21 38 22.567 38 24.5C38 26.433 36.433 28 34.5 28H32" stroke="#C2410C" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M16 22H30" stroke="#FED7AA" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>`;
+}
+
 function openSupportModal() {
   closeSupportModal();
   const dict = t();
@@ -1476,24 +1408,37 @@ function openSupportModal() {
   modal.setAttribute('aria-modal', 'true');
   modal.innerHTML = `
     <div class="support-modal-card">
-      <div class="support-sheet-handle" aria-hidden="true"></div>
-      <div class="support-author-row">
-        <div class="support-author-left">
-          <span class="support-author-avatar" aria-hidden="true">UP</span>
-          <span class="support-author-meta">${escapeHtml(dict.supportBadge)}</span>
+      <div class="support-reward-banner">
+        <div class="support-reward-left">
+          <span class="support-check-dot" aria-hidden="true">✓</span>
+          <span>${escapeHtml(dict.supportBadge)}</span>
         </div>
         <button type="button" id="supportCloseX" class="support-close-x" aria-label="Close">✕</button>
       </div>
-      <h2 class="support-modal-title">${escapeHtml(title)}</h2>
-      <p class="support-modal-desc">${escapeHtml(desc)}</p>
-      ${bondinHtml}
-      ${
-        extUrl
-          ? `<a id="supportExtLink" class="${bondinUser ? 'btn-support-inline' : 'btn-primary support-cta-link'}" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer" style="${bondinUser ? 'display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-bottom:8px;' : ''}">${escapeHtml(ctaLabel)}</a>`
-          : ''
-      }
-      ${upiHtml}
-      <button type="button" id="supportDismissBtn" class="support-dismiss-btn">${escapeHtml(dict.supportDismiss)}</button>
+
+      <div class="support-modal-body">
+        <div class="support-chai-row">
+          <div class="support-chai-icon">${supportChaiArtSvg()}</div>
+          <div>
+            <h2 class="support-modal-title">${escapeHtml(title)}</h2>
+            <p class="support-modal-desc">${escapeHtml(desc)}</p>
+          </div>
+        </div>
+
+        <div class="support-mini-tags">
+          <span>⚡ 100% विज्ञापन-मुक्त</span>
+          <span>❤️ पूरी तरह आपकी मर्ज़ी</span>
+        </div>
+
+        ${bondinHtml}
+        ${
+          extUrl
+            ? `<a id="supportExtLink" class="${bondinUser ? 'btn-support-inline' : 'btn-primary support-cta-link'}" href="${escapeHtml(extUrl)}" target="_blank" rel="noopener noreferrer" style="${bondinUser ? 'display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-bottom:8px;' : ''}">${escapeHtml(ctaLabel)}</a>`
+            : ''
+        }
+        ${upiHtml}
+        <button type="button" id="supportDismissBtn" class="support-dismiss-btn">${escapeHtml(dict.supportDismiss)}</button>
+      </div>
     </div>
   `;
 
@@ -1631,14 +1576,17 @@ function renderResults() {
         ${renderBarGroup(CONFIG.issues, bucket?.issues, total, showPick ? state.answers.issueId : null, true)}
       </div>
 
-      <!-- Vertical Column Graph for Age Groups -->
-      <div class="metric-section">
-        <h2 class="metric-heading">
-          <span>${escapeHtml(dict.ageHeading)}</span>
-          <span class="metric-tag">${escapeHtml(dict.columnTag)}</span>
-        </h2>
-        ${renderAgeColumnGraph(CONFIG.ageGroups, bucket?.ages, total, showPick ? state.answers.ageGroup : null)}
-      </div>
+      ${
+        CONFIG.ageGroups.some((g) => (bucket?.ages?.[g.id] || 0) > 0)
+          ? `<div class="metric-section">
+              <h2 class="metric-heading">
+                <span>${escapeHtml(dict.ageHeading)}</span>
+                <span class="metric-tag">${escapeHtml(dict.columnTag)}</span>
+              </h2>
+              ${renderAgeColumnGraph(CONFIG.ageGroups, bucket?.ages, total, showPick ? state.answers.ageGroup : null)}
+            </div>`
+          : ''
+      }
 
       <div class="share-card">
         <h2 class="share-title">${escapeHtml(dict.shareTitle)}</h2>
@@ -1696,8 +1644,8 @@ function renderResults() {
     state.pendingSupportPopup = false;
     if (hasSupportConfig()) {
       setTimeout(() => {
-        if (state.step === 6) openSupportModal();
-      }, 750);
+        if (state.step === 4) openSupportModal();
+      }, 600);
     }
   }
 
@@ -1721,10 +1669,8 @@ function render() {
   updateChrome();
   if (state.step === 0) renderSplash();
   else if (state.step === 1) renderStep1District();
-  else if (state.step === 2) renderStep2Seat();
-  else if (state.step === 3) renderStep3Issue();
-  else if (state.step === 4) renderStep4Poll();
-  else if (state.step === 5) renderStep5Age();
+  else if (state.step === 2) renderStep3Issue();
+  else if (state.step === 3) renderStep4Poll();
   else renderResults();
 }
 
