@@ -1073,6 +1073,28 @@ html[lang="en"] .card-title {
   gap: 10px;
 }
 
+.live-banner {
+  padding: 9px 13px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-md);
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
 .demo-reset-btn {
   flex-shrink: 0;
   padding: 6px 12px;

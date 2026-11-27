@@ -4,10 +4,22 @@
  */
 (function (global) {
 const CONFIG = {
-  mode: 'demo', // 'demo' | 'api'
+  mode: 'firebase', // 'firebase' | 'demo' | 'api'
   apiBase: '/api',
-  turnstileSiteKey: '', // Add Cloudflare Turnstile Site Key for production
+  turnstileSiteKey: '', // Add Cloudflare Turnstile Site Key if switching to 'api'
   randomizePollOptions: false,
+
+  firebase: {
+    apiKey: 'AIzaSyAS0HOq48rVRJdAsz1k8jv1TKZsBPh0NBQ',
+    authDomain: 'panchayat-survey-system.firebaseapp.com',
+    databaseURL: 'https://panchayat-survey-system-default-rtdb.asia-southeast1.firebasedatabase.app',
+    projectId: 'panchayat-survey-system',
+    storageBucket: 'panchayat-survey-system.firebasestorage.app',
+    messagingSenderId: '615913540263',
+    appId: '1:615913540263:web:c9a65bd10d7f177c29a982',
+    measurementId: 'G-GKKQNLCVC6',
+    rootPath: 'up_survey_2027',
+  },
 
   issues: [
     { id: 'rozgar', hi: 'रोज़गार और युवा अवसर', en: 'Employment & Youth Opportunities' },
@@ -160,6 +172,8 @@ const I18N = {
     resultsEyebrow: 'धन्यवाद • आपकी राय दर्ज हो गई',
     resultsTitle: (seatName) => `${seatName} और पूरे UP का लाइव ट्रेंड`,
     resultsSubtitle: 'नीचे आपकी विधानसभा और पूरे उत्तर प्रदेश का प्रतिशत विश्लेषण है।',
+    liveBadge: 'लाइव डेटाबेस कनेक्टेड • रियल-टाइम ट्रेंड',
+    firebasePendingBanner: 'Firebase सेटअप बाकी है (Anonymous Auth + RTDB Rules पब्लिश करें) — अभी लोकल प्रिव्यू दिख रहा है।',
     demoBanner: 'प्रोटोटाइप डेमो मोड: अभी आंकड़े सिर्फ आपके ब्राउज़र में सेव हो रहे हैं।',
     demoReset: 'टेस्ट रीसेट',
     tabSeat: (seatName) => `आपकी सीट (${seatName})`,
@@ -252,6 +266,8 @@ const I18N = {
     resultsEyebrow: 'Thank you • Opinion Recorded',
     resultsTitle: (seatName) => `Live Trend: ${seatName} & All UP`,
     resultsSubtitle: 'Instant percentage breakdown for your constituency and statewide UP.',
+    liveBadge: 'Live Database Connected • Real-time Trends',
+    firebasePendingBanner: 'Firebase setup pending (enable Anonymous Auth + RTDB Rules) — showing local preview.',
     demoBanner: 'Prototype Demo Mode: Counts are stored locally in your browser.',
     demoReset: 'Reset Test',
     tabSeat: (seatName) => `Your Seat (${seatName})`,

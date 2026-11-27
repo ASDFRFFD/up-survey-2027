@@ -3,6 +3,7 @@ const { CONFIG, I18N } = window.UP_SURVEY;
 
 const STORAGE_VOTE_KEY = 'up_survey_v3_user_vote';
 const STORAGE_DEMO_DB_KEY = 'up_survey_v3_demo_aggregates';
+const STORAGE_FB_AUTH_KEY = 'up_survey_v3_fb_auth';
 const STORAGE_LANG_KEY = 'up_survey_v1_lang';
 
 const CHART_PALETTE = [
@@ -36,6 +37,7 @@ const state = {
   resultsScope: 'seat', // 'seat' | 'state'
   viewedSeatAc: null,
   aggregates: null, // { seat: {...}, state: {...} }
+  usingFallbackDemo: false,
   submitting: false,
 };
 
@@ -823,6 +825,139 @@ function renderStep5Age() {
   });
 }
 
+function normalizeBucket(raw) {
+  const bucket = getEmptyBucket();
+  if (!raw || typeof raw !== 'object') return bucket;
+  bucket.totalVotes = Number(raw.totalVotes) || 0;
+  Object.keys(bucket.options).forEach((k) => {
+    bucket.options[k] = Number(raw.options?.[k]) || 0;
+  });
+  Object.keys(bucket.issues).forEach((k) => {
+    bucket.issues[k] = Number(raw.issues?.[k]) || 0;
+  });
+  Object.keys(bucket.ages).forEach((k) => {
+    bucket.ages[k] = Number(raw.ages?.[k]) || 0;
+  });
+  return bucket;
+}
+
+async function getFirebaseAuthSession() {
+  const fb = CONFIG.firebase;
+  if (!fb?.apiKey) throw new Error('Firebase config missing');
+
+  try {
+    const cachedRaw = localStorage.getItem(STORAGE_FB_AUTH_KEY);
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw);
+      if (cached.idToken && cached.uid && cached.expiresAt > Date.now() + 60000) {
+        return cached;
+      }
+      if (cached.refreshToken) {
+        const refRes = await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(fb.apiKey)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: cached.refreshToken }),
+        });
+        if (refRes.ok) {
+          const refData = await refRes.json();
+          const next = {
+            uid: refData.user_id,
+            idToken: refData.id_token,
+            refreshToken: refData.refresh_token || cached.refreshToken,
+            expiresAt: Date.now() + Number(refData.expires_in || 3600) * 1000,
+          };
+          localStorage.setItem(STORAGE_FB_AUTH_KEY, JSON.stringify(next));
+          return next;
+        }
+      }
+    }
+  } catch {
+    // ignore cache/refresh error and sign up fresh
+  }
+
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(fb.apiKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ returnSecureToken: true }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.idToken) {
+    throw new Error(data?.error?.message || 'Anonymous auth failed');
+  }
+  const session = {
+    uid: data.localId,
+    idToken: data.idToken,
+    refreshToken: data.refreshToken,
+    expiresAt: Date.now() + Number(data.expiresIn || 3600) * 1000,
+  };
+  try {
+    localStorage.setItem(STORAGE_FB_AUTH_KEY, JSON.stringify(session));
+  } catch {
+    // ignore storage errors
+  }
+  return session;
+}
+
+async function fetchFirebaseAggregates(acNo) {
+  const fb = CONFIG.firebase;
+  const base = `${fb.databaseURL.replace(/\/$/, '')}/${fb.rootPath}/aggregates`;
+  const [stateRes, seatRes] = await Promise.all([
+    fetch(`${base}/up_summary.json`),
+    fetch(`${base}/seats/${encodeURIComponent(acNo)}.json`),
+  ]);
+  if (!stateRes.ok || !seatRes.ok) {
+    throw new Error(`RTDB read failed (${stateRes.status}/${seatRes.status})`);
+  }
+  const [stateRaw, seatRaw] = await Promise.all([stateRes.json(), seatRes.json()]);
+  return {
+    state: normalizeBucket(stateRaw),
+    seat: normalizeBucket(seatRaw),
+  };
+}
+
+async function submitVoteToFirebase(payload) {
+  const fb = CONFIG.firebase;
+  const session = await getFirebaseAuthSession();
+  const base = `${fb.databaseURL.replace(/\/$/, '')}/${fb.rootPath}`;
+  const acKey = String(payload.acNo);
+  const ageKey = payload.ageGroup || 'skipped';
+  const inc = { '.sv': { increment: 1 } };
+
+  const patchBody = {
+    [`votes/${session.uid}`]: {
+      acNo: payload.acNo,
+      acKey,
+      districtId: payload.districtId,
+      issueId: payload.issueId,
+      optionId: payload.optionId,
+      ageGroup: ageKey,
+      ts: { '.sv': 'timestamp' },
+    },
+    'aggregates/up_summary/totalVotes': inc,
+    [`aggregates/up_summary/options/${payload.optionId}`]: inc,
+    [`aggregates/up_summary/issues/${payload.issueId}`]: inc,
+    [`aggregates/up_summary/ages/${ageKey}`]: inc,
+    [`aggregates/seats/${acKey}/totalVotes`]: inc,
+    [`aggregates/seats/${acKey}/options/${payload.optionId}`]: inc,
+    [`aggregates/seats/${acKey}/issues/${payload.issueId}`]: inc,
+    [`aggregates/seats/${acKey}/ages/${ageKey}`]: inc,
+  };
+
+  const res = await fetch(`${base}.json?auth=${encodeURIComponent(session.idToken)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patchBody),
+  });
+  if (!res.ok) {
+    const errTxt = await res.text();
+    const err = new Error(`RTDB write failed (${res.status}): ${errTxt}`);
+    err.status = res.status;
+    throw err;
+  }
+
+  return fetchFirebaseAggregates(payload.acNo);
+}
+
 async function submitVote() {
   if (state.submitting) return;
   state.submitting = true;
@@ -837,7 +972,24 @@ async function submitVote() {
   };
 
   try {
-    if (CONFIG.mode === 'api') {
+    state.usingFallbackDemo = false;
+
+    if (CONFIG.mode === 'firebase') {
+      try {
+        state.aggregates = await submitVoteToFirebase(payload);
+      } catch (fbErr) {
+        console.warn('Firebase fallback to demo mode:', fbErr);
+        // Check if this uid already voted in Firebase; otherwise fall back smoothly to local preview
+        state.usingFallbackDemo = true;
+        const store = loadDemoStore();
+        const seatKey = String(payload.acNo);
+        if (!store.seats[seatKey]) store.seats[seatKey] = getEmptyBucket();
+        incrementBucket(store.seats[seatKey], payload);
+        incrementBucket(store.state, payload);
+        saveDemoStore(store);
+        state.aggregates = { seat: store.seats[seatKey], state: store.state };
+      }
+    } else if (CONFIG.mode === 'api') {
       const res = await fetch(`${CONFIG.apiBase}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -869,7 +1021,16 @@ async function submitVote() {
 }
 
 async function loadSeatBucket(acNo) {
-  if (CONFIG.mode === 'api') {
+  if (CONFIG.mode === 'firebase') {
+    try {
+      state.aggregates = await fetchFirebaseAggregates(acNo);
+      state.usingFallbackDemo = false;
+      return;
+    } catch (err) {
+      console.warn('Firebase read fallback to local preview:', err);
+      state.usingFallbackDemo = true;
+    }
+  } else if (CONFIG.mode === 'api') {
     const res = await fetch(`${CONFIG.apiBase}/results?ac=${encodeURIComponent(acNo)}`);
     if (!res.ok) throw new Error('Failed to load results');
     state.aggregates = await res.json();
@@ -1041,12 +1202,15 @@ function renderResults() {
   el.stage.innerHTML = `
     <section class="card">
       ${
-        CONFIG.mode === 'demo'
+        CONFIG.mode === 'demo' || state.usingFallbackDemo
           ? `<div class="demo-banner">
-              <span>${escapeHtml(dict.demoBanner)}</span>
+              <span>${escapeHtml(state.usingFallbackDemo ? dict.firebasePendingBanner : dict.demoBanner)}</span>
               <button type="button" id="demoResetBtn" class="demo-reset-btn">${escapeHtml(dict.demoReset)}</button>
             </div>`
-          : ''
+          : `<div class="live-banner">
+              <span class="live-dot" aria-hidden="true"></span>
+              <span>${escapeHtml(dict.liveBadge)}</span>
+            </div>`
       }
 
       <p class="card-eyebrow">${escapeHtml(dict.resultsEyebrow)}</p>
@@ -1179,6 +1343,7 @@ function renderResults() {
     state.districtOpen = false;
     state.seatOpen = false;
     state.viewedSeatAc = null;
+    state.usingFallbackDemo = false;
     state.answers = { districtId: null, acNo: null, issueId: null, optionId: null, ageGroup: null };
     state.districtQuery = '';
     state.seatQuery = '';

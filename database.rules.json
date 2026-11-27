@@ -1,0 +1,66 @@
+{
+  "rules": {
+    "up_survey_2027": {
+      "aggregates": {
+        ".read": true,
+        "up_summary": {
+          "totalVotes": {
+            ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+            ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().child('votes/' + auth.uid).exists()"
+          },
+          "options": {
+            "$opt": {
+              ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+              ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().parent().child('votes/' + auth.uid + '/optionId').val() === $opt"
+            }
+          },
+          "issues": {
+            "$iss": {
+              ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+              ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().parent().child('votes/' + auth.uid + '/issueId').val() === $iss"
+            }
+          },
+          "ages": {
+            "$age": {
+              ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+              ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().parent().child('votes/' + auth.uid + '/ageGroup').val() === $age"
+            }
+          }
+        },
+        "seats": {
+          "$acKey": {
+            "totalVotes": {
+              ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+              ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().parent().child('votes/' + auth.uid + '/acKey').val() === $acKey"
+            },
+            "options": {
+              "$opt": {
+                ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+                ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().parent().parent().child('votes/' + auth.uid + '/acKey').val() === $acKey && newData.parent().parent().parent().parent().parent().child('votes/' + auth.uid + '/optionId').val() === $opt"
+              }
+            },
+            "issues": {
+              "$iss": {
+                ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+                ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().parent().parent().child('votes/' + auth.uid + '/acKey').val() === $acKey && newData.parent().parent().parent().parent().parent().child('votes/' + auth.uid + '/issueId').val() === $iss"
+              }
+            },
+            "ages": {
+              "$age": {
+                ".write": "auth != null && !root.child('up_survey_2027/votes/' + auth.uid).exists()",
+                ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1) && newData.parent().parent().parent().parent().parent().child('votes/' + auth.uid + '/acKey').val() === $acKey && newData.parent().parent().parent().parent().parent().child('votes/' + auth.uid + '/ageGroup').val() === $age"
+              }
+            }
+          }
+        }
+      },
+      "votes": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && !data.exists()",
+          ".validate": "newData.hasChildren(['acNo','acKey','districtId','issueId','optionId','ageGroup','ts']) && newData.child('acNo').isNumber() && newData.child('acNo').val() >= 1 && newData.child('acNo').val() <= 403 && newData.child('acKey').isString() && newData.child('acKey').val().matches(/^([1-9]|[1-9][0-9]|[1-3][0-9][0-9]|40[0-3])$/) && newData.child('districtId').isString() && newData.child('optionId').isString() && newData.child('optionId').val().matches(/^(nda|sp_inc|spm|bsp|other_ind|undecided|nota)$/) && newData.child('issueId').isString() && newData.child('issueId').val().matches(/^(rozgar|mehangai|sadak_bijli|shiksha|swasthya|kanoon|kisan)$/) && newData.child('ageGroup').isString() && newData.child('ageGroup').val().matches(/^(18-25|26-40|41-60|60\\+|skipped)$/) && newData.child('ts').val() === now"
+        }
+      }
+    }
+  }
+}

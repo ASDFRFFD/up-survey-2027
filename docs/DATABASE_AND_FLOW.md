@@ -118,5 +118,16 @@ service cloud.firestore {
 
 ## 5. Dataset Architecture (`data/up-constituencies.json`)
 - **Source:** Compiled from ECI / CEO Uttar Pradesh constituency mappings (75 districts, 403 assembly seats AC #1 to #403, reservation status `SC` / `ST`, bilingual `en` & `hi` names).
-- **Size:** ~24 KB raw / ~7 KB gzipped static asset cached at Cloudflare CDN edge.
+- **Size:** ~35 KB raw / ~8.3 KB gzipped static asset cached at CDN edge.
 - **UX benefit:** Instant local substring matching in both Devanagari (`लखनऊ`) and Latin (`lucknow` or `175`) with zero network round-trips.
+
+---
+
+## 6. Live Firebase Realtime Database Mode (`CONFIG.mode = 'firebase'`)
+For zero-server static hosting (e.g., GitHub Pages), the frontend authenticates each browser silently via **Firebase Anonymous Auth** (`identitytoolkit.googleapis.com`) and commits an atomic multi-path `PATCH` under `/up_survey_2027` using `{ ".sv": { "increment": 1 } }` directly to Firebase Realtime Database (`asia-southeast1`).
+
+Required one-time setup in Firebase Console (`panchayat-survey-system`):
+1. **Authentication → Sign-in method → Anonymous → Enable**
+2. **Realtime Database → Rules:** Paste and publish the contents of [`database.rules.json`](../database.rules.json) (enforces 1 vote per anonymous UID, strict `+1` increment validation, and valid seat/option/issue enums).
+3. *(Optional hardening)* **App Check:** Register your live domain with reCAPTCHA v3 to block automated script traffic.
+
