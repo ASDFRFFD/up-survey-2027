@@ -1136,11 +1136,11 @@
 
   function openAdminPopupPreview(cfg) {
     document.getElementById('supportModalRoot')?.remove();
-    const title = String(cfg.supportTitle || '').trim() || 'एक चाय / कॉफ़ी सपोर्ट करें ☕';
+    const title = String(cfg.supportTitle || '').trim() || 'सर्वे बढ़िया लगा? एक चाय पिला सकते हैं ☕';
     const desc =
       String(cfg.supportMessage || '').trim() ||
-      'यह सर्वे बिल्कुल मुफ़्त और विज्ञापन-मुक्त है। यदि आपको हमारा प्रयास पसंद आया, तो स्वेच्छा से छोटा-सा सहयोग दे सकते हैं।';
-    const btnLabel = String(cfg.supportBtnLabel || '').trim() || '☕ सपोर्ट करें (Support me)';
+      'इसे मैंने बिना विज्ञापन और बिना लॉगिन के बनाया है ताकि सही राय सामने आए। मन हो तो छोटा-सा सहयोग करें, वरना सीधा नतीजे देखें।';
+    const btnLabel = String(cfg.supportBtnLabel || '').trim() || 'चाय / सपोर्ट दें ☕';
     const bondinUser = String(cfg.bondinUsername || '').trim();
     const rawUrl = String(cfg.supportUrl || '').trim();
     let extUrl = '';
@@ -1164,11 +1164,14 @@
     modal.className = 'support-modal-backdrop';
     modal.innerHTML = `
       <div class="support-modal-card">
-        <button type="button" id="previewCloseX" class="support-close-x" aria-label="Close">✕</button>
-        <div class="support-cup-circle" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+        <div class="support-sheet-handle" aria-hidden="true"></div>
+        <div class="support-author-row">
+          <div class="support-author-left">
+            <span class="support-author-avatar" aria-hidden="true">V</span>
+            <span class="support-author-meta">Preview • वैभव यादव • UP जनमत सर्वे</span>
+          </div>
+          <button type="button" id="previewCloseX" class="support-close-x" aria-label="Close">✕</button>
         </div>
-        <span class="support-vol-badge">Preview • स्वेच्छिक सहयोग</span>
         <h2 class="support-modal-title">${escapeHtml(title)}</h2>
         <p class="support-modal-desc">${escapeHtml(desc)}</p>
         ${bondinHtml}
@@ -1187,7 +1190,7 @@
               ? `<p class="admin-dist-sub" style="margin:6px 0 0;">(Bondin Username, लिंक या UPI ID डालने के बाद लाइव साइट पर दिखेगा)</p>`
               : ''
         }
-        <button type="button" id="previewDismissBtn" class="support-dismiss-btn">अभी नहीं, सिर्फ़ नतीजे देखें</button>
+        <button type="button" id="previewDismissBtn" class="support-dismiss-btn">अभी रहने दें, नतीजे देखें</button>
       </div>
     `;
     document.body.appendChild(modal);
@@ -1243,17 +1246,17 @@
           <div class="admin-two-col">
             <div class="admin-field">
               <label for="supportTitleInput">Popup Title (खाली छोड़ने पर डिफ़ॉल्ट हिंदी शीर्षक)</label>
-              <input id="supportTitleInput" type="text" class="dropdown-search-input" placeholder="एक चाय / कॉफ़ी सपोर्ट करें ☕" value="${escapeHtml(cfg.supportTitle || '')}" />
+              <input id="supportTitleInput" type="text" class="dropdown-search-input" placeholder="सर्वे बढ़िया लगा? एक चाय पिला सकते हैं ☕" value="${escapeHtml(cfg.supportTitle || '')}" />
             </div>
             <div class="admin-field">
               <label for="supportBtnInput">Button Text</label>
-              <input id="supportBtnInput" type="text" class="dropdown-search-input" placeholder="☕ सपोर्ट करें (Buy Me a Coffee)" value="${escapeHtml(cfg.supportBtnLabel || '')}" />
+              <input id="supportBtnInput" type="text" class="dropdown-search-input" placeholder="चाय / सपोर्ट दें ☕" value="${escapeHtml(cfg.supportBtnLabel || '')}" />
             </div>
           </div>
 
           <div class="admin-field">
             <label for="supportMsgInput">Popup Message</label>
-            <input id="supportMsgInput" type="text" class="dropdown-search-input" placeholder="यह सर्वे बिल्कुल मुफ़्त है। पसंद आए तो स्वेच्छा से छोटा सहयोग दे सकते हैं।" value="${escapeHtml(cfg.supportMessage || '')}" />
+            <input id="supportMsgInput" type="text" class="dropdown-search-input" placeholder="इसे मैंने बिना विज्ञापन और बिना लॉगिन के बनाया है ताकि सही राय सामने आए।" value="${escapeHtml(cfg.supportMessage || '')}" />
           </div>
 
           <div class="admin-export-row">

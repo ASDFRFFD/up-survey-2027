@@ -1441,7 +1441,7 @@ function openSupportModal() {
 
   const title = cfg.supportTitle || dict.supportDefaultTitle;
   const desc = cfg.supportMessage || dict.supportDefaultDesc;
-  const ctaLabel = cfg.supportBtnLabel || (state.lang === 'hi' ? '☕ सपोर्ट करें (Support me)' : '☕ Support me');
+  const ctaLabel = cfg.supportBtnLabel || dict.supportDefaultCta;
 
   const bondinHtml = bondinUser
     ? `
@@ -1476,11 +1476,14 @@ function openSupportModal() {
   modal.setAttribute('aria-modal', 'true');
   modal.innerHTML = `
     <div class="support-modal-card">
-      <button type="button" id="supportCloseX" class="support-close-x" aria-label="Close">✕</button>
-      <div class="support-cup-circle" aria-hidden="true">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+      <div class="support-sheet-handle" aria-hidden="true"></div>
+      <div class="support-author-row">
+        <div class="support-author-left">
+          <span class="support-author-avatar" aria-hidden="true">V</span>
+          <span class="support-author-meta">${escapeHtml(dict.supportBadge)}</span>
+        </div>
+        <button type="button" id="supportCloseX" class="support-close-x" aria-label="Close">✕</button>
       </div>
-      <span class="support-vol-badge">${escapeHtml(dict.supportBadge)}</span>
       <h2 class="support-modal-title">${escapeHtml(title)}</h2>
       <p class="support-modal-desc">${escapeHtml(desc)}</p>
       ${bondinHtml}
