@@ -37,6 +37,7 @@ const state = {
   resultsScope: 'seat', // 'seat' | 'state'
   viewedSeatAc: null,
   aggregates: null, // { seat: {...}, state: {...} }
+  existingVote: null,
   surveyConfig: { paused: false, announcement: '' },
   usingFallbackDemo: false,
   submitting: false,
@@ -370,7 +371,9 @@ function renderSplash() {
     ? `<div class="live-notice-banner">${escapeHtml(state.surveyConfig.announcement)}</div>`
     : '';
 
-  const pausedHtml = state.surveyConfig?.paused
+  const votedSeat = state.existingVote && seatMap ? seatMap.get(state.existingVote.acNo) : null;
+
+  const splashMainCtaHtml = state.surveyConfig?.paused
     ? `
       <div class="invite-banner" style="text-align:left;">
         <div>
@@ -379,7 +382,16 @@ function renderSplash() {
         </div>
       </div>
       <button type="button" id="viewPausedResultsBtn" class="btn-primary splash-cta">${escapeHtml(dict.viewLiveResultsCta)}</button>`
-    : `
+    : state.existingVote
+      ? `
+      <div class="voted-home-card">
+        <strong>${escapeHtml(dict.alreadyVotedTitle)}</strong>
+        <div class="option-sub">${escapeHtml(dict.alreadyVotedDesc(votedSeat ? formatSeatName(votedSeat) : `#${state.existingVote.acNo}`))}</div>
+      </div>
+      <button type="button" id="viewMyResultsBtn" class="btn-primary splash-cta">
+        ${escapeHtml(dict.viewMyResultsCta)}
+      </button>`
+      : `
       ${inviteHtml}
       <button type="button" id="startSurveyBtn" class="btn-primary splash-cta">
         ${escapeHtml(dict.splashStartCta)}
@@ -426,7 +438,7 @@ function renderSplash() {
         </div>
       </div>
 
-      ${pausedHtml}
+      ${splashMainCtaHtml}
 
       <div class="splash-trust-row">
         <span>${escapeHtml(dict.splashTrust1)}</span>
@@ -439,6 +451,30 @@ function renderSplash() {
   document.getElementById('startSurveyBtn')?.addEventListener('click', () => {
     state.step = 1;
     render();
+  });
+
+  document.getElementById('viewMyResultsBtn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const ev = state.existingVote;
+      if (!ev) return;
+      state.answers = {
+        districtId: ev.districtId,
+        acNo: ev.acNo,
+        issueId: ev.issueId,
+        optionId: ev.optionId,
+        ageGroup: ev.ageGroup,
+      };
+      const targetAc = state.invitedSeatAc || ev.acNo;
+      state.viewedSeatAc = targetAc;
+      await loadSeatBucket(targetAc);
+      state.resultsScope = 'seat';
+      state.step = 6;
+      render();
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   document.getElementById('viewPausedResultsBtn')?.addEventListener('click', async () => {
@@ -1049,6 +1085,22 @@ async function fetchFirebaseAggregates(acNo) {
   };
 }
 
+async function checkFirebaseExistingVote() {
+  const fb = CONFIG.firebase;
+  try {
+    const raw = localStorage.getItem(STORAGE_FB_AUTH_KEY);
+    if (!raw) return 'unknown';
+    const session = await getFirebaseAuthSession();
+    const url = `${fb.databaseURL.replace(/\/$/, '')}/${fb.rootPath}/votes/${encodeURIComponent(session.uid)}.json?auth=${encodeURIComponent(session.idToken)}`;
+    const res = await fetch(url);
+    if (!res.ok) return 'unknown';
+    const data = await res.json();
+    return data && typeof data === 'object' ? data : null;
+  } catch {
+    return 'unknown';
+  }
+}
+
 async function submitVoteToFirebase(payload) {
   const fb = CONFIG.firebase;
   const session = await getFirebaseAuthSession();
@@ -1111,9 +1163,28 @@ async function submitVote() {
     if (CONFIG.mode === 'firebase') {
       try {
         state.aggregates = await submitVoteToFirebase(payload);
+        state.existingVote = payload;
       } catch (fbErr) {
+        const remoteVote = await checkFirebaseExistingVote();
+        if (remoteVote && remoteVote !== 'unknown') {
+          const syncedVote = {
+            districtId: remoteVote.districtId || payload.districtId,
+            acNo: Number(remoteVote.acNo) || payload.acNo,
+            issueId: remoteVote.issueId || payload.issueId,
+            optionId: remoteVote.optionId || payload.optionId,
+            ageGroup: remoteVote.ageGroup === 'skipped' ? null : (remoteVote.ageGroup || null),
+          };
+          saveUserVote(syncedVote);
+          state.existingVote = syncedVote;
+          state.answers = { ...syncedVote };
+          state.aggregates = await fetchFirebaseAggregates(syncedVote.acNo);
+          state.viewedSeatAc = syncedVote.acNo;
+          state.step = 6;
+          state.resultsScope = 'seat';
+          showToast(t().duplicateVoteToast);
+          return;
+        }
         console.warn('Firebase fallback to demo mode:', fbErr);
-        // Check if this uid already voted in Firebase; otherwise fall back smoothly to local preview
         state.usingFallbackDemo = true;
         const store = loadDemoStore();
         const seatKey = String(payload.acNo);
@@ -1122,6 +1193,7 @@ async function submitVote() {
         incrementBucket(store.state, payload);
         saveDemoStore(store);
         state.aggregates = { seat: store.seats[seatKey], state: store.state };
+        state.existingVote = payload;
       }
     } else if (CONFIG.mode === 'api') {
       const res = await fetch(`${CONFIG.apiBase}/vote`, {
@@ -1347,7 +1419,10 @@ function renderResults() {
             </div>`
       }
 
-      <p class="card-eyebrow">${escapeHtml(dict.resultsEyebrow)}</p>
+      <div class="results-top-nav">
+        <button type="button" id="goHomeBtn" class="results-home-btn">${escapeHtml(dict.goHomeBtn)}</button>
+        <p class="card-eyebrow" style="margin:0;">${escapeHtml(dict.resultsEyebrow)}</p>
+      </div>
       <h1 class="card-title">${escapeHtml(dict.resultsTitle(seatShort))}</h1>
       <p class="card-subtitle">${escapeHtml(dict.resultsSubtitle)}</p>
 
@@ -1471,8 +1546,14 @@ function renderResults() {
     }
   });
 
+  document.getElementById('goHomeBtn')?.addEventListener('click', () => {
+    state.step = 0;
+    render();
+  });
+
   document.getElementById('demoResetBtn')?.addEventListener('click', () => {
     localStorage.removeItem(STORAGE_VOTE_KEY);
+    state.existingVote = null;
     state.step = 0;
     state.districtOpen = false;
     state.seatOpen = false;
@@ -1575,22 +1656,30 @@ async function init() {
       }
     }
 
-    const existingVote = getSavedUserVote();
+    let existingVote = getSavedUserVote();
     const validOption = existingVote && CONFIG.pollOptions.some((o) => o.id === existingVote.optionId);
     const validIssue = existingVote && CONFIG.issues.some((i) => i.id === existingVote.issueId);
     if (existingVote && seatMap.has(existingVote.acNo) && validOption && validIssue) {
-      state.answers = {
-        districtId: existingVote.districtId,
-        acNo: existingVote.acNo,
-        issueId: existingVote.issueId,
-        optionId: existingVote.optionId,
-        ageGroup: existingVote.ageGroup,
-      };
-      state.viewedSeatAc = existingVote.acNo;
-      await loadSeatBucket(existingVote.acNo);
-      state.step = 6;
+      if (CONFIG.mode === 'firebase') {
+        const remoteVote = await checkFirebaseExistingVote();
+        if (remoteVote === null) {
+          localStorage.removeItem(STORAGE_VOTE_KEY);
+          existingVote = null;
+        }
+      }
+      if (existingVote) {
+        state.existingVote = existingVote;
+        state.answers = {
+          districtId: existingVote.districtId,
+          acNo: existingVote.acNo,
+          issueId: existingVote.issueId,
+          optionId: existingVote.optionId,
+          ageGroup: existingVote.ageGroup,
+        };
+      }
     }
 
+    state.step = 0;
     render();
   } catch (err) {
     console.error(err);

@@ -1654,6 +1654,56 @@ html[lang="en"] .card-title {
   transform: translateY(-1px);
 }
 
+.voted-home-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #f0fdf4 0%, #fffbeb 100%);
+  border: 1px solid #86efac;
+  color: #14532d;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.voted-home-card .option-sub {
+  color: #166534;
+  margin-top: 2px;
+}
+
+.results-top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.results-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 130ms ease, transform 120ms ease;
+}
+
+.results-home-btn:hover {
+  border-color: var(--orange-deep);
+  background: var(--bg-warm);
+  transform: translateY(-1px);
+}
+
 /* Loading & toast */
 .loading-card {
   background: var(--card);

@@ -211,6 +211,11 @@ const I18N = {
     quickDistrictsLabel: 'प्रमुख ज़िले (1-टैप चुनें):',
     quickSeatsTapHint: (n) => `अपनी सीट पर सीधे टैप करें (${n} सीटें)`,
     quickSeatsFilterPlaceholder: 'सीट का नाम या नंबर लिखकर फ़िल्टर करें...',
+    alreadyVotedTitle: '✓ आपकी राय पहले से दर्ज है',
+    alreadyVotedDesc: (seatName) => `${seatName} के लिए आपका मत सुरक्षित दर्ज है (1 डिवाइस = 1 वोट)। नीचे क्लिक कर लाइव ग्राफ़ व नतीजे देखें।`,
+    viewMyResultsCta: 'लाइव नतीजे व ग्राफ़ देखें →',
+    goHomeBtn: '← होम पेज',
+    duplicateVoteToast: 'इस डिवाइस से वोट पहले ही दर्ज है — लाइव नतीजे दिखाए जा रहे हैं।',
   },
   en: {
     brandTitle: 'UP Opinion Survey',
@@ -313,6 +318,11 @@ const I18N = {
     quickDistrictsLabel: 'Popular districts (1-tap):',
     quickSeatsTapHint: (n) => `Tap your seat directly (${n} seats)`,
     quickSeatsFilterPlaceholder: 'Filter by seat name or AC number...',
+    alreadyVotedTitle: '✓ Your Opinion Is Already Recorded',
+    alreadyVotedDesc: (seatName) => `Your vote for ${seatName} is safely recorded (1 device = 1 vote). Tap below to explore live graphs & trends.`,
+    viewMyResultsCta: 'View Live Results & Graphs →',
+    goHomeBtn: '← Home',
+    duplicateVoteToast: 'This device has already voted — showing live results.',
   },
 };
 
