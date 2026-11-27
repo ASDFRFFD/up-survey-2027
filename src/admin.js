@@ -341,43 +341,126 @@
     await loadAllDashboardData();
   }
 
+  function formatAuthError(code) {
+    const msg = String(code || '').toUpperCase();
+    if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD') || msg.includes('EMAIL_NOT_FOUND')) {
+      return 'गलत ईमेल या पासवर्ड — कृपया जांच कर दोबारा प्रयास करें। (Invalid email or password)';
+    }
+    if (msg.includes('INVALID_EMAIL')) {
+      return 'कृपया सही ईमेल पता दर्ज करें। (Invalid email address)';
+    }
+    if (msg.includes('TOO_MANY_ATTEMPTS')) {
+      return 'बहुत अधिक प्रयास हुए — कृपया कुछ देर बाद प्रयास करें।';
+    }
+    if (msg.includes('USER_DISABLED')) {
+      return 'यह Admin अकाउंट Firebase Console से अक्षम (Disabled) है।';
+    }
+    return code || 'लॉगिन विफल रहा। कृपया दोबारा कोशिश करें।';
+  }
+
   function renderLoginCard() {
     statusPill.textContent = 'Admin Login';
     signOutBtn.hidden = true;
     root.innerHTML = `
       <section class="card admin-login-card">
-        <p class="card-eyebrow">Admin Control • Firebase Auth</p>
-        <h1 class="card-title">UP सर्वे Admin Login</h1>
-        <p class="card-subtitle">All-UP 403 सीट एनालिटिक्स, CSV एक्सपोर्ट और स्पैम कंट्रोल के लिए अपने Firebase Admin Email/Password से लॉगिन करें।</p>
+        <div class="admin-login-brand">
+          <div>
+            <div class="splash-badge" style="margin:0;">
+              <span class="splash-pulse" aria-hidden="true"></span>
+              <span>UP 2027 Command Center</span>
+            </div>
+            <h1 class="admin-brand-title">उत्तर प्रदेश जनमत सर्वे — Admin</h1>
+            <p class="admin-brand-sub">सभी 75 ज़िलों और 403 विधानसभा सीटों के लाइव आंकड़े, CSV रिपोर्ट्स और सर्वे नियंत्रण एक जगह।</p>
 
-        <form id="adminLoginForm" class="admin-form">
-          <div class="admin-field">
-            <label for="adminEmail">Admin Email</label>
-            <input id="adminEmail" type="email" class="dropdown-search-input" required placeholder="admin@example.com" />
+            <ul class="admin-features-list">
+              <li>
+                <span class="admin-feat-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                </span>
+                <span>All-UP 403 सीट व ज़िलेवार लाइव एनालिटिक्स</span>
+              </li>
+              <li>
+                <span class="admin-feat-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </span>
+                <span>1-क्लिक Excel CSV रिपोर्ट डाउनलोड</span>
+              </li>
+              <li>
+                <span class="admin-feat-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </span>
+                <span>स्पैम वोट ऑडिट, Pause व Notice नियंत्रण</span>
+              </li>
+            </ul>
           </div>
-          <div class="admin-field">
-            <label for="adminPassword">Password</label>
-            <input id="adminPassword" type="password" class="dropdown-search-input" required placeholder="••••••••" />
+
+          <div class="admin-sec-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Firebase Auth + UID Whitelist Protected</span>
           </div>
-          <button type="submit" id="loginSubmitBtn" class="btn-primary">Sign In →</button>
-        </form>
+        </div>
+
+        <div class="admin-login-pane">
+          <h2 class="admin-login-heading">Admin साइन-इन</h2>
+          <p class="admin-login-desc">अपने Firebase Admin ईमेल और पासवर्ड से लॉगिन करें।</p>
+
+          <form id="adminLoginForm" class="admin-form">
+            <div id="loginErrorBox" class="admin-error-box" hidden></div>
+
+            <div class="admin-field">
+              <label for="adminEmail">Admin ईमेल (Email)</label>
+              <div class="admin-input-wrap">
+                <span class="admin-input-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                </span>
+                <input id="adminEmail" type="email" autocomplete="email" class="admin-input" required placeholder="admin@example.com" />
+              </div>
+            </div>
+
+            <div class="admin-field">
+              <label for="adminPassword">पासवर्ड (Password)</label>
+              <div class="admin-input-wrap">
+                <span class="admin-input-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input id="adminPassword" type="password" autocomplete="current-password" class="admin-input" required placeholder="अपना पासवर्ड लिखें" />
+                <button type="button" id="togglePwBtn" class="admin-pw-toggle" aria-label="Show or hide password">
+                  <svg id="pwEyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" id="loginSubmitBtn" class="btn-primary" style="margin-top:4px;">सुरक्षित लॉगिन करें →</button>
+          </form>
+
+          <p class="admin-login-foot">पासवर्ड भूलने या नया Admin जोड़ने के लिए Firebase Console → Authentication → Users का उपयोग करें।</p>
+        </div>
       </section>
     `;
+
+    const pwInput = document.getElementById('adminPassword');
+    document.getElementById('togglePwBtn').addEventListener('click', () => {
+      const showing = pwInput.type === 'text';
+      pwInput.type = showing ? 'password' : 'text';
+    });
 
     document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('loginSubmitBtn');
+      const errBox = document.getElementById('loginErrorBox');
       const email = document.getElementById('adminEmail').value.trim();
-      const pass = document.getElementById('adminPassword').value;
+      const pass = pwInput.value;
+      errBox.hidden = true;
       btn.disabled = true;
-      btn.textContent = 'Signing in...';
+      btn.textContent = 'साइन-इन हो रहा है...';
       try {
         await signInWithEmailPassword(email, pass);
         await loadAllDashboardData();
       } catch (err) {
-        showToast(err.message || 'Login failed');
+        errBox.textContent = formatAuthError(err.message);
+        errBox.hidden = false;
         btn.disabled = false;
-        btn.textContent = 'Sign In →';
+        btn.textContent = 'सुरक्षित लॉगिन करें →';
       }
     });
   }
